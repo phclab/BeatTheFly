@@ -2,6 +2,8 @@
 
 *A Smart Fruit Fly is playing chess against you*
 
+**The anatomical connectome gives you wiring, not synaptic strengths. Ours are trained.**
+
 Play chess against a spiking neural network wired from the **real fruit-fly (Drosophila)
 mushroom-body connectome** -- [MaleCNS](https://male-cns.janelia.org/) mushroom body, 4,510 neurons and
 1,027,152 neuron-to-neuron connections, used under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).

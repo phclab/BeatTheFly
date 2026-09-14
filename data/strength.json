@@ -1,0 +1,13 @@
+{
+ "label": "move-match with 1500\u20131800 Lichess blitz players (4000 held-out games)",
+ "overall_move_match": 0.41,
+ "legal_rate": 0.965,
+ "opening": 0.497,
+ "early_mid": 0.473,
+ "middlegame": 0.416,
+ "endgame": 0.357,
+ "n_games": 4000,
+ "elo": 993,
+ "elo_ci95": 44,
+ "elo_text": "\u2248990 Elo (95% CI \u00b144) vs Stockfish UCI_Elo anchors, CCRL Blitz scale, 1,100 games, argmax play"
+}
