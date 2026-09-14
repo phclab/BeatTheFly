@@ -1,13 +1,15 @@
 {
- "label": "move-match with 1500\u20131800 Lichess blitz players (4000 held-out games)",
- "overall_move_match": 0.41,
- "legal_rate": 0.965,
- "opening": 0.497,
- "early_mid": 0.473,
- "middlegame": 0.416,
- "endgame": 0.357,
- "n_games": 4000,
- "elo": 993,
- "elo_ci95": 44,
- "elo_text": "\u2248990 Elo (95% CI \u00b144) vs Stockfish UCI_Elo anchors, CCRL Blitz scale, 1,100 games, argmax play"
+ "elo": 1110,
+ "elo_ci95": 39,
+ "elo_text": "\u22481110 Elo (95% CI \u00b139) vs Stockfish UCI_Elo anchors, CCRL Blitz scale, 800 games, argmax play",
+ "vs_previous_text": "+139 Elo over v1 on the same openings (95% CI +75 to +211)",
+ "test_label": "4,000 held-out Lichess games between players rated 2200+",
+ "sf_agreement": 0.447,
+ "sf_opening": 0.928,
+ "sf_early_mid": 0.602,
+ "sf_middlegame": 0.382,
+ "sf_endgame": 0.314,
+ "human_move_match": 0.391,
+ "blitz_move_match": 0.364,
+ "blitz_label": "held-out Lichess blitz games (1500\u20131800)"
 }

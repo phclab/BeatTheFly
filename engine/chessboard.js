@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Chess-side helpers for the engine: board encoding, legal-move vocabulary, game status.
 import { Chess } from '../vendor/chess.esm.js';
 
 const FILES = 'abcdefgh';
-const sqIndex = s => FILES.indexOf(s[0]) + 8 * (parseInt(s[1], 10) - 1);   // a1 = 0 ... h8 = 63
 const PT = { p: 1, n: 2, b: 3, r: 4, q: 5, k: 6 };
 
-/** Play UCI moves from the start position; throws on an illegal move. */
 export function replay(moves) {
   if (!Array.isArray(moves) || moves.length > 1000) throw new Error('bad move list');
   const g = new Chess();
@@ -19,18 +16,10 @@ export function replay(moves) {
   return g;
 }
 
-/**
- * The 68-byte board the model reads, always seen from the side to move (when Black is to move the
- * board is flipped vertically and the colours are swapped):
- *   0..63 piece code per square (0 empty, 1-6 own P N B R Q K, 7-12 opponent's)
- *   64    castling rights (bit0 own king-side, bit1 own queen-side, bit2/bit3 opponent's)
- *   65    en-passant file 0-7 after any double pawn push, 255 otherwise
- *   66    half-move clock (capped at 255);  67 unused
- */
 export function encodeBoard(g, out = new Uint8Array(68)) {
   out.fill(0);
   const blackToMove = g.turn() === 'b';
-  const bd = g.board();                         // bd[0] = rank 8 ... bd[7] = rank 1
+  const bd = g.board();
   for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
     const p = bd[r][c]; if (!p) continue;
     let sq = (7 - r) * 8 + c;
@@ -42,7 +31,6 @@ export function encodeBoard(g, out = new Uint8Array(68)) {
   const has = ch => cast.indexOf(ch) >= 0;
   const [usK, usQ, thK, thQ] = blackToMove ? ['k', 'q', 'K', 'Q'] : ['K', 'Q', 'k', 'q'];
   out[64] = (has(usK) ? 1 : 0) | (has(usQ) ? 2 : 0) | (has(thK) ? 4 : 0) | (has(thQ) ? 8 : 0);
-  // the en-passant file is set after every double push, even if no capture is possible
   const hist = g.history({ verbose: true });
   const last = hist.length ? hist[hist.length - 1] : null;
   const big = last && last.piece === 'p' && Math.abs(parseInt(last.to[1], 10) - parseInt(last.from[1], 10)) === 2;
@@ -52,7 +40,6 @@ export function encodeBoard(g, out = new Uint8Array(68)) {
   return out;
 }
 
-/** Legal moves that exist in the model's move vocabulary -> {ids, ucis, sans}. */
 export function legalVocab(g, tok2id) {
   const ids = [], ucis = [], sans = [];
   for (const m of g.moves({ verbose: true })) {
@@ -63,7 +50,6 @@ export function legalVocab(g, tok2id) {
   return { ids, ucis, sans };
 }
 
-// ------------------------------------------------------------------ game status
 function pieces(g) {
   const out = [];
   const bd = g.board();
@@ -71,7 +57,6 @@ function pieces(g) {
   return out;
 }
 const isDark = sq => ((sq >> 3) + (sq & 7)) % 2 === 0;
-// a side has insufficient material if it cannot deliver mate even with the opponent's help
 function hasInsufficient(ps, color) {
   const mine = ps.filter(p => p.color === color), theirs = ps.filter(p => p.color !== color);
   if (mine.some(p => 'prq'.includes(p.type))) return false;
@@ -85,7 +70,6 @@ function hasInsufficient(ps, color) {
   return true;
 }
 const halfmoves = g => parseInt(g.fen().split(' ')[4], 10);
-// the fifty-move and threefold draws may also be claimed with the move that reaches them
 function canClaimFifty(g) {
   if (halfmoves(g) >= 100 && g.moves().length) return true;
   if (halfmoves(g) >= 99) {
@@ -105,7 +89,7 @@ function canClaimThreefold(g) {
   }
   return false;
 }
-export function statusOf(g) {
+function statusOf(g) {
   const out = { over: false, result: null, reason: null, check: g.isCheck() };
   const set = (res, why) => { out.over = true; out.result = res; out.reason = why; return out; };
   if (g.isCheckmate()) return set(g.turn() === 'w' ? '0-1' : '1-0', 'checkmate');
@@ -133,15 +117,11 @@ function captured(g) {
   return [out, { w: score.b - score.w, b: score.w - score.b }];
 }
 
-/** Everything the page shows about a position. */
 export function boardState(g, moves) {
-  const legal = g.moves({ verbose: true }).map(m => ({
-    uci: m.from + m.to + (m.promotion || ''), san: m.san, from: sqIndex(m.from), to: sqIndex(m.to),
-    promo: m.promotion || null,
-  }));
+  const legal = g.moves({ verbose: true }).map(m => ({ uci: m.from + m.to + (m.promotion || ''), promo: m.promotion || null }));
   const [cap, adv] = captured(g);
   return {
-    fen: g.fen(), turn: g.turn(), ply: moves.length, legal, status: statusOf(g),
-    san_history: g.history(), captured: cap, advantage: adv, last: moves.length ? moves[moves.length - 1] : null,
+    fen: g.fen(), turn: g.turn(), legal, status: statusOf(g),
+    san_history: g.history(), captured: cap, advantage: adv,
   };
 }

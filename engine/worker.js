@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Web Worker that hosts the network, so the page stays responsive.
-// Messages: {id, cmd, args} with cmd = init | new | validate | think.
-// Replies:  {id, type: 'progress' | 'event' | 'result' | 'error', ...}
 import { FlyRSNN, loadWeights } from './rsnn.js';
 import { GameSession } from './session.js';
 import { replay, boardState, encodeBoard } from './chessboard.js';
@@ -29,7 +26,6 @@ async function fetchBytes(url, onBytes) {
   return out;
 }
 
-/** Replay the reference positions and compare the chosen move and the logits with the reference. */
 function runSelfcheck(sc) {
   const g = new Chess(), raw = new Uint8Array(68);
   net.reset();
@@ -47,9 +43,7 @@ function runSelfcheck(sc) {
   return { plies: sc.plies.length, legal_top1_agree: agree, max_abs_logit_diff: maxd };
 }
 
-/** base: URL of the page folder; wbase: URL of the model folder (may be another origin). */
 async function init({ base, wbase, variant }, post) {
-  const t0 = performance.now();
   const wb = wbase.endsWith('/') ? wbase : wbase + '/';
   [manifest, info, tok2id] = await Promise.all([
     fetchJSON(wb + 'manifest.json'), fetchJSON(wb + 'info.json'), fetchJSON(`${base}data/chess_uci_vocab.json`)]);
@@ -63,7 +57,7 @@ async function init({ base, wbase, variant }, post) {
   net = new FlyRSNN(manifest, T);
   let check = null;
   try { check = runSelfcheck(await fetchJSON(wb + `selfcheck_${variant}.json`)); } catch (_) { check = null; }
-  return { info, variant, wbase: wb, download_bytes: totalBytes, load_s: (performance.now() - t0) / 1000, selfcheck: check,
+  return { info, variant, download_bytes: totalBytes, selfcheck: check,
            manifest: { label: manifest.label, connectome_audit: manifest.connectome_audit, validation: manifest.validation } };
 }
 

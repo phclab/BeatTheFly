@@ -1,20 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Recurrent spiking network (RSNN) of the fruit-fly mushroom body, one timestep per ply.
-//
-// State carried across the game: membrane potential V_f, reset current V_res, last spikes, and the
-// DAN-gated fast weight M [n_kc, n_mbon]. Per step:
-//   syn   = W @ spikes(t-1)                  recurrent current (synaptic delay 1)
-//   syn[MBON] *= sigmoid(Wg @ DAN spikes)    dopamine gate on the MBON input
-//   V_f   = alpha_exc * V_f + drive + syn    the carried state is not clamped
-//   V_c   = max(V_f, e_cl);  V_res = alpha_inh * V_res + relu(pre_spike * reset_w)
-//   spike = (V_c - V_res) > v_th
-//   logits = dec_w @ (V + lam * fast-weight recall on the MBON slice) + dec_b
-// Values are rounded to float32 after every elementwise operation; sums accumulate in float64.
 
 const f = Math.fround;
 const EPS_RES = Math.fround(1e-8), EPS_LN = Math.fround(1e-5);
 
-// ------------------------------------------------------------------ weight files
 let F16LUT = null;
 function f16lut() {
   if (F16LUT) return F16LUT;
@@ -34,7 +22,6 @@ function view(buf, dtype) {
   switch (dtype) {
     case 'float32': return new Float32Array(buf);
     case 'float16': return new Uint16Array(buf);
-    case 'int8': return new Int8Array(buf);
     case 'uint16': return new Uint16Array(buf);
     case 'uint32': return new Uint32Array(buf);
     case 'int32': return new Int32Array(buf);
@@ -42,8 +29,7 @@ function view(buf, dtype) {
   }
 }
 
-/** Decode one tensor. float16 is widened to float32; int8 uses a per-row float32 scale. */
-export function decodeTensor(ent, bytes, scaleBytes) {
+export function decodeTensor(ent, bytes) {
   const buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   const a = view(buf, ent.dtype);
   if (ent.dtype === 'float16') {
@@ -51,28 +37,14 @@ export function decodeTensor(ent, bytes, scaleBytes) {
     for (let i = 0; i < a.length; i++) out[i] = L[a[i]];
     return out;
   }
-  if (ent.dtype === 'int8') {
-    const sb = scaleBytes.buffer.slice(scaleBytes.byteOffset, scaleBytes.byteOffset + scaleBytes.byteLength);
-    const s = new Float32Array(sb), cols = ent.shape[1], out = new Float32Array(a.length);
-    for (let r = 0; r < ent.shape[0]; r++) {
-      const sc = s[r], o = r * cols;
-      for (let c = 0; c < cols; c++) out[o + c] = f(a[o + c] * sc);
-    }
-    return out;
-  }
   return a;
 }
 
-/** Download and decode every tensor of one precision variant listed in manifest.json.
- *  fetchBytes(file, onBytes) -> Promise<Uint8Array>; onProgress(done, total, file). */
 export async function loadWeights(manifest, variant, fetchBytes, onProgress) {
   const ents = manifest.variants[variant];
   if (!ents) throw new Error('unknown weight variant: ' + variant);
   const files = new Map();
-  for (const e of Object.values(ents)) {
-    files.set(e.file, e.bytes);
-    if (e.scale) files.set(e.scale.file, e.scale.bytes);
-  }
+  for (const e of Object.values(ents)) files.set(e.file, e.bytes);
   const total = [...files.values()].reduce((a, b) => a + b, 0);
   let done = 0;
   const got = new Map();
@@ -84,14 +56,10 @@ export async function loadWeights(manifest, variant, fetchBytes, onProgress) {
   }
   const T = {};
   for (const [name, e] of Object.entries(ents))
-    T[name] = decodeTensor(e, got.get(e.file), e.scale ? got.get(e.scale.file) : null);
+    T[name] = decodeTensor(e, got.get(e.file));
   return { T, totalBytes: total };
 }
 
-// ------------------------------------------------------------------ board features
-// 68-byte board -> indices of the active binary features (789 in total):
-// 64 squares x 12 piece codes, 4 castling rights, en-passant file (9 incl. none), 8 clock buckets.
-export const D_BOARD = 768 + 4 + 9 + 8;
 export function activeBoardFeatures(raw) {
   const act = [];
   for (let sq = 0; sq < 64; sq++) {
@@ -104,12 +72,11 @@ export function activeBoardFeatures(raw) {
   return act;
 }
 
-// ------------------------------------------------------------------ network
 export class FlyRSNN {
   constructor(manifest, T) {
     const S = manifest.scalars;
     this.S = S;
-    this.H = S.H; this.V = S.vocab;
+    this.H = S.H;
     this.nkc = S.n_kc; this.nmb = S.n_mbon; this.ndan = S.n_dan;
     Object.assign(this, {
       encTok: T.enc_tok_T, encTokB: T.enc_tok_b, lnTokW: T.ln_tok_w, lnTokB: T.ln_tok_b,
@@ -118,7 +85,7 @@ export class FlyRSNN {
       Wg: T.Wg, Wdv: T.W_dan_val,
       aExc: T.alpha_exc, aInh: T.alpha_inh, vth: T.v_th, rst: T.reset_weight,
       kc: T.kc_idx, mbon: T.mbon_idx, dan: T.dan_idx,
-      cp: T.W_colptr, ri: T.W_rowidx, wv: T.W_vals,          // recurrent weights, CSC by source
+      cp: T.W_colptr, ri: T.W_rowidx, wv: T.W_vals,
     });
     const H = this.H;
     this.kcMask = new Uint8Array(H); for (const i of this.kc) this.kcMask[i] = 1;
@@ -133,10 +100,8 @@ export class FlyRSNN {
     this.Vf = new Float32Array(H); this.Vres = new Float32Array(H);
     this.spk = new Uint8Array(H);
     this.M = new Float32Array(this.nkc * this.nmb);
-    this.t = 0;
   }
 
-  // LayerNorm: (x - mean) / sqrt(var + eps) * w + b
   _ln(x, w, b, out) {
     const H = this.H;
     let s = 0; for (let i = 0; i < H; i++) s += x[i];
@@ -146,15 +111,9 @@ export class FlyRSNN {
     for (let i = 0; i < H; i++) out[i] = f(f(f(f(x[i] - mean) / den) * w[i]) + b[i]);
   }
 
-  /**
-   * One timestep. tok: move token id; raw: Uint8Array(68), the board after that move.
-   * opts.logits: 'full' for all move tokens, or an array of token ids (e.g. the legal moves).
-   * Returns {logits, spk, Vf}.
-   */
   step(tok, raw, opts = {}) {
     const H = this.H, S = this.S, x = this._x;
 
-    // input drive: token and board encoders, each with its own LayerNorm, onto the Kenyon cells
     const to = tok * H;
     for (let i = 0; i < H; i++) x[i] = f(this.encTok[to + i] + this.encTokB[i]);
     this._ln(x, this.lnTokW, this.lnTokB, this._tokh);
@@ -167,14 +126,12 @@ export class FlyRSNN {
       const emb = f(f(ut * this._tokh[i]) + f(ub * this._brdh[i]));
       drive[i] = f(da * (this.kcMask[i] ? Math.abs(emb) : 0));
     }
-    // teaching drive onto the dopaminergic (DAN) neurons
     const vo = tok * this.ndan;
     for (let d = 0; d < this.ndan; d++) {
       const i = this.dan[d];
       drive[i] = f(drive[i] + f(S.dan_teach * Math.abs(f(this.v2d[vo + d] + this.v2dB[d]))));
     }
 
-    // recurrent current from the previous spikes: scatter the columns of the neurons that fired
     const prev = this.spk, syn = this._syn;
     syn.fill(0);
     const cp = this.cp, ri = this.ri, wv = this.wv;
@@ -190,7 +147,6 @@ export class FlyRSNN {
       syn[i] = f(f(syn[i]) * f(1 / (1 + Math.exp(-f(g)))));
     }
 
-    // leaky integrate-and-fire
     const Vf = this.Vf, Vres = this.Vres, Vfinal = this.Vfinal, ecl = S.e_cl;
     const out = new Uint8Array(H);
     for (let i = 0; i < H; i++) {
@@ -205,7 +161,6 @@ export class FlyRSNN {
       out[i] = f(vfin - this.vth[i]) > 0 ? 1 : 0;
     }
 
-    // fast-weight recall: active Kenyon cells read M into the MBON voltages
     const Vaug = this.Vaug; Vaug.set(Vfinal);
     const M = this.M, nkc = this.nkc, kc = this.kc;
     const r = new Float64Array(nmb);
@@ -216,22 +171,19 @@ export class FlyRSNN {
     }
     for (let m = 0; m < nmb; m++) { const i = this.mbon[m]; Vaug[i] = f(Vaug[i] + f(S.lam * f(r[m]))); }
 
-    // readout from the whole population
     let logits = null;
     if (opts.logits) {
-      const ids = opts.logits === 'full' ? null : opts.logits;
-      const n = ids ? ids.length : this.V;
+      const ids = opts.logits, n = ids.length;
       logits = new Float32Array(n);
       const dec = this.dec;
       for (let k = 0; k < n; k++) {
-        const v = ids ? ids[k] : k, o = v * H;
+        const v = ids[k], o = v * H;
         let s = 0;
         for (let i = 0; i < H; i++) s += dec[o + i] * Vaug[i];
         logits[k] = f(f(s) + this.decB[v]);
       }
     }
 
-    // fast-weight write: key = previous Kenyon-cell spikes, value = gated DAN signal
     const gv = new Float32Array(nmb);
     for (let m = 0; m < nmb; m++) {
       let g = 0, v = 0; const o = m * ndan;
@@ -245,7 +197,6 @@ export class FlyRSNN {
     }
 
     this.spk = out;
-    this.t++;
     return { logits, spk: out, Vf };
   }
 }

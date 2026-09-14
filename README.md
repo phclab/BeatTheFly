@@ -20,6 +20,8 @@ Drag or click a piece to move. You can play White or Black, flip the board, take
 the fly sample its move with a temperature instead of always playing its top choice.
 
 ## How it works
+Data sources: human games from the [Lichess open database](https://database.lichess.org/) (lichess.org, CC0); move labels from the [Stockfish](https://stockfishchess.org/) chess engine.
+
 The page downloads the trained synaptic weights and runs the network in a Web Worker as plain
 JavaScript; nothing is computed on a server. Each move is one timestep of a recurrent spiking
 network: the move and the resulting board drive the Kenyon cells, spikes travel along the

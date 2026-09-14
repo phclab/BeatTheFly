@@ -401,8 +401,9 @@ footer b{color:#9fb0cb}
   Synaptic weights: trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a>
   parallel-scan mode, deployment in sequential RSNN mode.
   <span class="byline">made by Po-Han Chiang @ NYCU</span>. Chess rules: <b>chess.js</b> © Jeff Hlywa, BSD-2-Clause
-  (<a href="vendor/LICENSE.chessjs">license</a>). The network was trained on human games from the
-  Lichess open database. Board, piece artwork, fly cartoon and atlas renderer are original to this project.
+  (<a href="vendor/LICENSE.chessjs">license</a>). Data sources: human games from the
+  <a href="https://database.lichess.org/" target="_blank" rel="noopener">Lichess open database</a> (lichess.org, CC0); move labels
+  from the <a href="https://stockfishchess.org/" target="_blank" rel="noopener">Stockfish</a> chess engine. Board, piece artwork, fly cartoon and atlas renderer are original to this project.
   <span id="footck"></span>
 </footer>
 <div id="loader"><div class="box">
@@ -428,8 +429,6 @@ const ST = {
 };
 const game = new Chess();
 
-/* ================= board =================
-   Dependency-free board. Pieces are flat SVG silhouettes drawn for this project. */
 const P_SVG = (() => {
   const wrap = (body, light) => encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">` +
@@ -482,7 +481,7 @@ function boardInit(host, onMove){
 }
 function fileRank(sq){ return ['abcdefgh'.indexOf(sq[0]), parseInt(sq[1],10)-1]; }
 function sqName(c,r){ return 'abcdefgh'[c] + (r+1); }
-function colRow(sq){                       // display position (0,0 = top-left)
+function colRow(sq){
   let [f,r]=fileRank(sq);
   return BD.orient==='white' ? [f, 7-r] : [7-f, r];
 }
@@ -512,8 +511,6 @@ function boardSet(o){
   BD.sel=null;
   boardRender();
 }
-/* Draw an arbitrary piece map (animation frames only). Display-only: does not touch BD.fen,
-   ST or the chess.js mirror, and disables input until the next boardSet({fen}). */
 function boardShowMap(map){
   BD.override = Object.assign({}, map);
   BD.movable = null; BD.dests = new Map(); BD.sel = null;
@@ -523,7 +520,6 @@ function boardRender(){
   if (!BD.fen) return;
   const pos = BD.override || parseFEN(BD.fen);
   const b=BD.el.getBoundingClientRect(), s=(b.width||BD.el.clientWidth||320)/8;
-  // squares
   const kids=BD.sqLayer.children;
   const destSet = BD.sel ? new Set(BD.dests.get(BD.sel)||[]) : null;
   let kingSq=null;
@@ -543,7 +539,6 @@ function boardRender(){
     d.innerHTML = (c===0 ? '<i class="cr">'+(BD.orient==='white'?8-r:r+1)+'</i>' : '')
                 + (r===7 ? '<i class="cf">'+(BD.orient==='white'?'abcdefgh'[c]:'hgfedcba'[c])+'</i>' : '');
   }
-  // pieces
   const want={};
   for (const [sq,p] of Object.entries(pos)) want[sq]=p;
   for (const [sq,el] of Object.entries(BD.pieces))
@@ -596,11 +591,10 @@ function onUp(e){
     if (to && to!==d.sq && (BD.dests.get(d.sq)||[]).includes(to)){
       BD.sel=null; boardRender(); BD.onMove(d.sq, to); return;
     }
-    boardRender();                      // illegal drop -> snap back
+    boardRender();
   }
 }
 
-/* ================= board wiring ================= */
 function destsMap(){
   const m = new Map();
   for (const mv of ST.legal){
@@ -611,18 +605,16 @@ function destsMap(){
   return m;
 }
 const sideToMoveColor = () => ST.turn === 'w' ? 'white' : 'black';
-/* Board size: on wide screens as large as fits below the header (capped at 62% of the width and
-   960 px, leaving at least 340 px for the side column); on narrow screens it fills the width. */
 function fitBoard(){
   const root=document.documentElement;
   if (innerWidth<=1000){ root.style.removeProperty('--bcol'); return; }
   const wrap=document.querySelector('.wrap'), cs=getComputedStyle(wrap);
   const inner=wrap.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
   const hdr=document.querySelector('header').offsetHeight;
-  const byH=innerHeight-hdr-95;                   // card title and capture bar sit above the board
+  const byH=innerHeight-hdr-95;
   const byW=Math.min(0.62*innerWidth, inner-16-340-30);
   const size=Math.round(Math.max(360, Math.min(byH, byW, 960)));
-  root.style.setProperty('--bcol', (size+30)+'px');   // + card padding and border
+  root.style.setProperty('--bcol', (size+30)+'px');
 }
 function initBoard(){
   fitBoard();
@@ -668,7 +660,6 @@ function askPromotion(opts, dest){
   div.querySelectorAll('.promo-pc').forEach(el => spriteInto(el, el.dataset.piece));
 }
 function spriteInto(el, cls){
-  // cls looks like "queen white" / "pawn black"
   const [type, colour] = cls.split(' ');
   const k = (colour==='white'?'w':'b') + {pawn:'P',knight:'N',bishop:'B',rook:'R',queen:'Q',king:'K'}[type];
   if (P_SVG[k]) el.style.backgroundImage = 'url("'+P_SVG[k]+'")';
@@ -676,7 +667,6 @@ function spriteInto(el, cls){
   el.style.backgroundPosition='center';
 }
 
-/* ================= engine (Web Worker) ================= */
 const W = {worker:null, seq:0, pending:new Map()};
 function rpc(cmd, args, onEvent){
   return new Promise((res, rej) => {
@@ -709,7 +699,6 @@ async function play(uci){
   if (!ST.status.over && sideToMoveColor() !== ST.human) setTimeout(think, 60);
 }
 
-/* ================= game panels ================= */
 function renderMoves(){
   const h=ST.sanHistory, rows=[]; const flyIsWhite = ST.human==='black';
   for (let i=0;i<h.length;i+=2)
@@ -757,8 +746,6 @@ function renderOver(){
       '). Press <b>New game</b> to play again.</div>' : '';
 }
 
-/* ================= ATLAS ================= */
-
 function unpack(b64, n){
   const raw=atob(b64), out=new Uint8Array(n);
   for (let i=0;i<n;i++) out[i]=(raw.charCodeAt(i>>3)>>(i&7))&1;
@@ -770,14 +757,9 @@ function unpackBytes(b64, n){
   return out;
 }
 
-/* ---- real per-cell traced morphology (MaleCNS v1.0 skeletons) ----
-   SKEL.pts holds every skeleton point as uint16; we project once per layout into screen XY and
-   record, per neuron, the polyline ranges. The backdrop (all cells, dim) is rasterised once into an
-   offscreen canvas; each timestep only the FIRING cells are redrawn bright on top, so the cost per
-   frame scales with the (sparse) active set, not with the 4510-cell anatomy. */
-let SKEL = null;          // {npoly:Uint32Array, plen:Uint16Array, xyz:Uint16Array, origin, step}
-let PROJ = null;          // {xy:Float32Array(2P), polyStart:Uint32Array, W,H}
-let PSTART = null;        // cumulative point offset of each polyline
+let SKEL = null;
+let PROJ = null;
+let PSTART = null;
 
 async function loadSkeletons(){
   try {
@@ -801,12 +783,9 @@ async function loadSkeletons(){
   } catch(e){ console.warn('skeletons unavailable', e); return null; }
 }
 
-/* project the skeleton point cloud into the canvas; axis pair chosen by ST.proj */
 function projectSkel(W,H){
   const P = SKEL.xyz.length/3;
   const [ax,ay] = ST.proj==='dorsal' ? [0,2] : [0,1];
-  // Frame on the Kenyon-cell cloud — that IS the mushroom body. MBON/DAN processes that leave the
-  // MB for other brain regions simply run out of frame rather than shrinking the structure.
   if (!SKEL.kcbox) SKEL.kcbox={};
   let box=SKEL.kcbox[ax+'_'+ay];
   if (!box){
@@ -837,7 +816,6 @@ function projectSkel(W,H){
   PROJ={xy, polyStart:PSTART, W, H};
 }
 
-/* draw one neuron's whole morphology (every polyline of that cell) */
 function strokeNeuron(x, i){
   const a=SKEL.npoly[i], b=SKEL.npoly[i+1];
   if (a===b) return;
@@ -851,7 +829,6 @@ function strokeNeuron(x, i){
   x.stroke();
 }
 
-/* fallback view: measured soma positions as dots (used if skeletons are unavailable) */
 function layoutSoma(W,H){
   const a=ST.info.atlas, N=ST.info.H;
   const P=new Float32Array(2*N), R=new Float32Array(N);
@@ -868,15 +845,10 @@ function layoutSoma(W,H){
   return {pos:P, rad:R};
 }
 
-/* ---- build / draw ---- */
 let ATLAS=null, SOMA=null;
-/* Hairline rendering: stroke widths are in DEVICE pixels (divided by dpr at draw time) and every
-   neuron is drawn at very low alpha, so density comes from the 4064 overlapping KC arbours rather
-   than from stroke weight — the fibrous, glassy look of a confocal stack. Firing changes LUMINANCE
-   only (additive 'lighter' compositing); geometry never thickens. */
 const DIM = {KC:0.016, MBON:0.055, DAN:0.045, APL:0.11, other:0.045};
-const LW  = {KC:0.45,  MBON:0.60, DAN:0.55,  APL:0.70, other:0.55};   // device px
-const HOT = {KC:0.13,  MBON:0.34, DAN:0.30,  APL:0.42, other:0.24};   // additive, same width
+const LW  = {KC:0.45,  MBON:0.60, DAN:0.55,  APL:0.70, other:0.55};
+const HOT = {KC:0.13,  MBON:0.34, DAN:0.30,  APL:0.42, other:0.24};
 
 function buildAtlas(){
   if (!ST.info || !ST.info.atlas) return;
@@ -903,7 +875,6 @@ function renderBg(W,H,dpr){
   const NAMES=ST.info.class_names;
   x.lineCap='round'; x.lineJoin='round';
   if (SKEL){
-    // dim backdrop: every traced cell, drawn once. KCs faintest (there are 4064 of them).
     for (const cname of ['KC','other','DAN','MBON','APL']){
       const ci=NAMES.indexOf(cname); if (ci<0) continue;
       const col=CLR[cname]||CLR.other;
@@ -936,7 +907,6 @@ function drawAtlas(bits, vf){
   const NAMES=ST.info.class_names;
   const t0=performance.now();
   if (ST.memory && vf){
-    // carried membrane state: the circuit's memory of earlier moves
     if (SKEL){
       x.globalCompositeOperation='lighter';
       x.strokeStyle='rgba(255,196,71,0.055)'; x.lineWidth=0.7/ATLAS.dpr;
@@ -950,8 +920,6 @@ function drawAtlas(bits, vf){
   }
   if (bits){
     if (SKEL){
-      // whole-cell lighting: each firing neuron's ENTIRE morphology is redrawn bright
-      // additive glow: overlapping active fibres sum into light, widths unchanged
       x.globalCompositeOperation='lighter';
       for (const cname of ['KC','other','DAN','MBON','APL']){
         const ci=NAMES.indexOf(cname); if (ci<0) continue;
@@ -972,7 +940,6 @@ function drawAtlas(bits, vf){
   const dm=$('mDraw'); if (dm) dm.textContent = ST.drawMs.toFixed(0)+' ms';
 }
 
-/* ================= charts ================= */
 function lineChart(id, series, ymax, xn, h, xlab){
   const c=$(id); if(!c||!c.getContext) return;
   const W=Math.max(240, Math.floor(c.clientWidth||440)), H=h||118;
@@ -1007,7 +974,6 @@ function lineChart(id, series, ymax, xn, h, xlab){
   var s_isPct = (ymax<=1.0001);
 }
 
-/* ================= thinking ================= */
 async function think(){
   if (ST.busy || !ST.ready) return;
   ST.busy=true; syncBoard(); renderStatus();
@@ -1056,7 +1022,7 @@ function onChoice(ev){
   renderCands(ev.candidates);
 }
 function onFinal(ev){
-  const preFen = ST.fen;                 // position before the move, for the animation only
+  const preFen = ST.fen;
   ST.moves.push(ev.uci);
   ST.hist=ev.hist||[];
   renderCands(ev.candidates);
@@ -1064,7 +1030,6 @@ function onFinal(ev){
     (100*ev.p).toFixed(1)+'%  ·  '+
     ev.candidates.slice(1).map(c=>esc(c.san)+' '+(100*c.p).toFixed(1)+'%').join('  ');
   drawGameCharts();
-  // cartoon fly carries the piece; applyState(ev.state) runs on landing (or in finally)
   ST.anim = flyPlayMove(ev, preFen);
 }
 function renderCands(cands){
@@ -1110,7 +1075,6 @@ function drawGameCharts(){
   $('mMsS').textContent='first '+ms[0].toFixed(0)+' · last '+ms[ms.length-1].toFixed(0)+' ms';
 }
 
-/* ---- replay scrubber ---- */
 function showT(t){
   if (!ST.bits[t]) return;
   ST.scrubT=t;
@@ -1129,9 +1093,6 @@ $('rewPlay').onclick=()=>{
   }, 140);
 };
 
-/* ================= the cartoon fly =================
-   Purely visual: the move itself is applied by applyState(), and every path through the animation
-   ends there, so skipping or an exception never loses a move. */
 const FLY = {el:null, bubble:null, carry:null, busy:false, skip:false, x:0, y:0};
 
 function flyInit(){
@@ -1245,9 +1206,6 @@ function puff(sq, kind){
 }
 const PT={p:'pawn',n:'knight',b:'bishop',r:'rook',q:'queen',k:'king'};
 
-/* The carried piece hangs below the fly: sprite top = fly.y + 0.22*csz, so its centre is
-   HANG = 0.72*csz below the fly. Every pickup/drop puts the FLY at (square centre - HANG) so the
-   PIECE sits exactly on the square: no jump when lifted, none when it lands. */
 function flySize(){ const w=$('boardwrap').clientWidth||320; FLY.csz=(w/8)*0.86; FLY.k=Math.min(2.2, Math.max(1, w/8/46)); }
 const HANG = () => FLY.csz*0.72;
 async function flyToSquare(sq){
@@ -1262,21 +1220,11 @@ async function carryTo(from, to){
   await flyTo(tx, ty-h, 120);
 }
 
-/**
- * The fly plays its move. Visible order:
- *   board shows the PRE-move position -> fly lands on `from` -> in ONE frame the piece leaves
- *   `from` and appears on the fly -> carried to `to` (a captured piece stays visible until the
- *   landing) -> in ONE frame applyState(ev.state) draws the new position and the carried
- *   sprite is removed. Castling = king leg, then rook leg. Promotion: pawn carried, promoted piece
- *   appears on landing. Intermediate frames use boardShowMap() (display only). Skip / exception /
- *   new game: `finally` lands on applyState(ev.state). Input stays disabled throughout because
- *   think() awaits this promise before clearing ST.busy.
- */
 async function flyPlayMove(ev, preFen){
   const gen = ST.gen;
   FLY.busy=true; FLY.skip=false;
-  flyShow(true);                                  // the fly is always visible while it carries
-  flySize();                                      // HANG must be known before the first leg
+  flyShow(true);
+  flySize();
   $('skipfly').style.display='inline-block';
   let landed=false;
   const land = () => { if (gen===ST.gen) applyState(ev.state); carryHide(); landed=true; };
@@ -1293,7 +1241,7 @@ async function flyPlayMove(ev, preFen){
     const ROOK={e1g1:['h1','f1'], e1c1:['a1','d1'], e8g8:['h8','f8'], e8c8:['a8','d8']}[uci]||null;
 
     const pre = parseFEN(preFen);
-    boardShowMap(pre);                    // pre-move position stays on screen
+    boardShowMap(pre);
     flyThinking(false);
 
     await flyToSquare(from);
@@ -1302,7 +1250,7 @@ async function flyPlayMove(ev, preFen){
     await carryTo(from, to);
 
     if (isCastle && ROOK){
-      const m2 = Object.assign({}, m1); m2[to] = pre[from];  // king down, rook still home
+      const m2 = Object.assign({}, m1); m2[to] = pre[from];
       boardShowMap(m2); carryHide();
       await flyToSquare(ROOK[0]);
       const m3 = Object.assign({}, m2); delete m3[ROOK[0]];
@@ -1326,7 +1274,6 @@ async function flyPlayMove(ev, preFen){
     flyTo(w-30, -40, 420).then(()=>{ if (!FLY.busy) flyShow(false); });
   }
 }
-/* ================= start-up ================= */
 function supportsModuleWorker(){
   let ok=false;
   try { new Worker('data:,', {get type(){ ok=true; return 'module'; }}).terminate(); } catch(_){}
@@ -1350,7 +1297,6 @@ async function loadInfo(){
     throw new Error('unsupported browser');
   }
   const qs = new URLSearchParams(location.search);
-  // model folder: ?weights=<url> for one visit, otherwise WEIGHTS_BASE from config.js
   const CFG = window.FLY_CONFIG || {};
   const wsrc = qs.get('weights') || CFG.WEIGHTS_BASE || '';
   if (!wsrc || /[<>]/.test(wsrc)){
@@ -1374,7 +1320,7 @@ async function loadInfo(){
     loaderMsg('Could not load the fly\'s brain', esc(e.message), true); throw e;
   }
   const d = Object.assign({}, r.info);
-  ST.info = d; ST.engine = r;
+  ST.info = d;
   $('loader').style.display='none';
   const g=d.groups||{}, man=r.manifest, audit=man.connectome_audit||{}, val=man.validation||{}, sc=r.selfcheck;
   const ok=v=>v?'<span class="ok">PASS</span>':'<span class="warn">FAIL</span>';
@@ -1403,20 +1349,19 @@ async function loadInfo(){
   $('footck').textContent = ' Model: '+man.label+' ('+r.variant+' weights).';
   let st=null; try { const rs=await fetch('data/strength.json'); if (rs.ok) st=await rs.json(); } catch(_){}
   const pc=v=>(100*v).toFixed(1)+'%';
-  $('caveat').innerHTML = st && st.overall_move_match
-    ? '<b>Honest caveat.</b> This is not a strong engine. Human move-match <b>'+pc(st.overall_move_match)+'</b> '+
-        '(opening '+pc(st.opening)+', early-mid '+pc(st.early_mid)+', middlegame '+pc(st.middlegame)+', endgame '+
-        pc(st.endgame)+') — '+esc(st.label||'')+'. Its raw output is legal <b>'+pc(st.legal_rate)+'</b> of the time; '+
-        'this interface masks the distribution to legal moves so it always plays legally. Playing strength: <b>'+
-        (st.elo_text ? esc(st.elo_text) : 'not measured yet')+'</b>. No search, no evaluation function, no concept of '+
-        'checkmate beyond what move statistics taught it. The interesting claim is <i>which substrate is computing</i>.'
-    : '<b>Honest caveat.</b> This is not a strong engine, and the move-match of this model has not been measured yet. '+
-        'This interface masks the distribution to legal moves so it always plays legally. The interesting claim is '+
-        '<i>which substrate is computing</i>.';
-  if (st && st.overall_move_match){
+  $('caveat').innerHTML = st && st.elo_text
+    ? '<b>Honest caveat.</b> This is not a strong engine: '+esc(st.elo_text)+
+      (st.vs_previous_text ? ' ('+esc(st.vs_previous_text)+')' : '')+'. On '+esc(st.test_label)+' it picks Stockfish\'s best move <b>'+
+      pc(st.sf_agreement)+'</b> of the time (opening '+pc(st.sf_opening)+', early middlegame '+pc(st.sf_early_mid)+
+      ', middlegame '+pc(st.sf_middlegame)+', endgame '+pc(st.sf_endgame)+') and the move the human played '+
+      pc(st.human_move_match)+'. There is no search and no evaluation function: each move is one timestep of the '+
+      'network, restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.'
+    : '<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet. '+
+      'Every move is restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.';
+  if (st && st.elo_text){
     const tb=$('facts'), tr=document.createElement('tr');
-    tr.innerHTML='<td>strength</td><td>move-match '+pc(st.overall_move_match)+' · legal '+pc(st.legal_rate)+
-      ' · '+(st.elo_text?esc(st.elo_text):'Elo not measured yet')+'</td>';
+    tr.innerHTML='<td>strength</td><td>'+esc(st.elo_text)+' · Stockfish best-move agreement '+pc(st.sf_agreement)+
+      ' · human move-match '+pc(st.human_move_match)+'</td>';
     tb.insertBefore(tr, tb.children[11]||null);
   }
   $('hdL').textContent=d.nL; $('hdR').textContent=d.nR;
