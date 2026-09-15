@@ -40,14 +40,26 @@ export function encodeBoard(g, out = new Uint8Array(68)) {
   return out;
 }
 
+export function activeBoardFeatures(raw) {
+  const act = [];
+  for (let sq = 0; sq < 64; sq++) {
+    const c = raw[sq];
+    if (c > 0 && c <= 12) act.push(sq * 12 + (c - 1));
+  }
+  for (let i = 0; i < 4; i++) if ((raw[64] >> i) & 1) act.push(768 + i);
+  act.push(772 + (raw[65] < 8 ? raw[65] : 8));
+  act.push(781 + Math.min(raw[66] >> 4, 7));
+  return act;
+}
+
 export function legalVocab(g, tok2id) {
-  const ids = [], ucis = [], sans = [];
+  const ids = [], moves = [], labels = [];
   for (const m of g.moves({ verbose: true })) {
     const u = m.from + m.to + (m.promotion || '');
     const i = tok2id[u];
-    if (i !== undefined) { ids.push(i); ucis.push(u); sans.push(m.san); }
+    if (i !== undefined) { ids.push(i); moves.push(u); labels.push(m.san); }
   }
-  return { ids, ucis, sans };
+  return { ids, moves, labels };
 }
 
 function pieces(g) {
@@ -117,11 +129,25 @@ function captured(g) {
   return [out, { w: score.b - score.w, b: score.w - score.b }];
 }
 
-export function boardState(g, moves) {
+export function boardState(g) {
   const legal = g.moves({ verbose: true }).map(m => ({ uci: m.from + m.to + (m.promotion || ''), promo: m.promotion || null }));
   const [cap, adv] = captured(g);
+  return { fen: g.fen(), turn: g.turn(), legal, status: statusOf(g), san_history: g.history(), captured: cap, advantage: adv };
+}
+
+export function chessGame(tok2id) {
   return {
-    fen: g.fen(), turn: g.turn(), legal, status: statusOf(g),
-    san_history: g.history(), captured: cap, advantage: adv,
+    bos: 1,
+    start: () => new Chess(),
+    replay,
+    play(g, uci) {
+      let mv = null;
+      try { mv = g.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || undefined }); } catch (_) {}
+      if (!mv) throw new Error(`illegal move ${uci} in position ${g.fen()}`);
+      return tok2id[uci] !== undefined ? tok2id[uci] : 0;
+    },
+    features: g => activeBoardFeatures(encodeBoard(g)),
+    legal: g => legalVocab(g, tok2id),
+    view: g => boardState(g),
   };
 }

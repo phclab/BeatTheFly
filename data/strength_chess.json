@@ -1,7 +1,7 @@
 {
  "elo": 1110,
  "elo_ci95": 39,
- "elo_text": "\u22481110 Elo (95% CI \u00b139) vs Stockfish UCI_Elo anchors, CCRL Blitz scale, 800 games, argmax play",
+ "elo_text": "≈1110 Elo (95% CI ±39) vs Stockfish UCI_Elo anchors, CCRL Blitz scale, 800 games, argmax play",
  "vs_previous_text": "+139 Elo over v1 on the same openings (95% CI +75 to +211)",
  "test_label": "4,000 held-out Lichess games between players rated 2200+",
  "sf_agreement": 0.447,
@@ -11,5 +11,5 @@
  "sf_endgame": 0.314,
  "human_move_match": 0.391,
  "blitz_move_match": 0.364,
- "blitz_label": "held-out Lichess blitz games (1500\u20131800)"
+ "blitz_label": "held-out Lichess blitz games (1500–1800)"
 }

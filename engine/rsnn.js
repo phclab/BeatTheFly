@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-
 const f = Math.fround;
 const EPS_RES = Math.fround(1e-8), EPS_LN = Math.fround(1e-5);
 
@@ -60,18 +59,6 @@ export async function loadWeights(manifest, variant, fetchBytes, onProgress) {
   return { T, totalBytes: total };
 }
 
-export function activeBoardFeatures(raw) {
-  const act = [];
-  for (let sq = 0; sq < 64; sq++) {
-    const c = raw[sq];
-    if (c > 0 && c <= 12) act.push(sq * 12 + (c - 1));
-  }
-  for (let i = 0; i < 4; i++) if ((raw[64] >> i) & 1) act.push(768 + i);
-  act.push(772 + (raw[65] < 8 ? raw[65] : 8));
-  act.push(781 + Math.min(raw[66] >> 4, 7));
-  return act;
-}
-
 export class FlyRSNN {
   constructor(manifest, T) {
     const S = manifest.scalars;
@@ -111,14 +98,14 @@ export class FlyRSNN {
     for (let i = 0; i < H; i++) out[i] = f(f(f(f(x[i] - mean) / den) * w[i]) + b[i]);
   }
 
-  step(tok, raw, opts = {}) {
+  step(tok, act, opts = {}) {
     const H = this.H, S = this.S, x = this._x;
 
     const to = tok * H;
     for (let i = 0; i < H; i++) x[i] = f(this.encTok[to + i] + this.encTokB[i]);
     this._ln(x, this.lnTokW, this.lnTokB, this._tokh);
     for (let i = 0; i < H; i++) x[i] = 0;
-    for (const a of activeBoardFeatures(raw)) { const o = a * H; for (let i = 0; i < H; i++) x[i] += this.encBrd[o + i]; }
+    for (const a of act) { const o = a * H; for (let i = 0; i < H; i++) x[i] += this.encBrd[o + i]; }
     for (let i = 0; i < H; i++) x[i] = f(f(x[i]) + this.encBrdB[i]);
     this._ln(x, this.lnBrdW, this.lnBrdB, this._brdh);
     const drive = this._drive, ut = S.use_tok, ub = S.use_board, da = S.drive_alpha;

@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import { replay, encodeBoard, legalVocab, boardState } from './chessboard.js';
-import { Chess } from '../vendor/chess.esm.js';
-
-export const BOS = 1;
-const HIST_MAX = 260;
+export const HIST_MAX = 260;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const r5 = x => Math.round(x * 1e5) / 1e5;
 const r4 = x => Math.round(x * 1e4) / 1e4;
@@ -71,29 +67,26 @@ function overlap(a, b) {
 }
 
 export class GameSession {
-  constructor(rsnn, info, tok2id) {
-    this.net = rsnn; this.info = info; this.tok2id = tok2id;
+  constructor(rsnn, info, game) {
+    this.net = rsnn; this.info = info; this.game = game;
     this.brain = new Brain(info);
-    this.raw = new Uint8Array(68);
     this.reset();
   }
 
   reset() {
-    this.game = new Chess();
+    this.state = this.game.start();
     this.moves = [];
     this.net.reset();
     this.hist = [];
     this.spkFirst = null; this.spkPrev = null;
     this.lastLogits = null; this.lastLegal = null;
-    this._advance(BOS);
+    this._advance(this.game.bos);
   }
 
   _advance(tok) {
-    const g = this.game;
-    encodeBoard(g, this.raw);
-    const lv = legalVocab(g, this.tok2id);
+    const lv = this.game.legal(this.state);
     const t0 = now();
-    const { logits, spk, Vf } = this.net.step(tok, this.raw, { logits: lv.ids });
+    const { logits, spk, Vf } = this.net.step(tok, this.game.features(this.state), { logits: lv.ids });
     const ms = now() - t0;
     this.lastLogits = logits; this.lastLegal = lv;
     const brain = this.brain.of(spk, Vf);
@@ -109,12 +102,10 @@ export class GameSession {
     return { brain, ent };
   }
 
-  push(uci) {
-    let mv = null;
-    try { mv = this.game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || undefined }); } catch (_) {}
-    if (!mv) throw new Error(`illegal move ${uci} in position ${this.game.fen()}`);
-    this.moves.push(uci);
-    return this._advance(this.tok2id[uci] !== undefined ? this.tok2id[uci] : 0);
+  push(move) {
+    const tok = this.game.play(this.state, move);
+    this.moves.push(move);
+    return this._advance(tok);
   }
 
   sync(moves) {
@@ -143,17 +134,17 @@ export class GameSession {
       for (let i = 1; i < p.length; i++) if (p[i] > p[pick]) pick = i;
     }
     const order = p.map((v, i) => i).sort((a, b) => p[b] - p[a] || a - b);
-    return { uci: lv.ucis[pick], san: lv.sans[pick], p: p[pick],
-             candidates: order.slice(0, topk).map(j => ({ uci: lv.ucis[j], san: lv.sans[j], p: p[j] })) };
+    return { move: lv.moves[pick], label: lv.labels[pick], p: p[pick],
+             candidates: order.slice(0, topk).map(j => ({ move: lv.moves[j], label: lv.labels[j], p: p[j] })) };
   }
 
   compactHist() { return this.hist.map(({ bits, ...rest }) => rest); }
 
   *think(moves, temperature = 0) {
     let b;
-    try { b = replay(moves); } catch (e) { yield { ev: 'error', msg: String(e.message || e) }; return; }
-    const st0 = boardState(b, moves).status;
-    if (st0.over || !b.moves().length) { yield { ev: 'gameover', status: st0 }; return; }
+    try { b = this.game.replay(moves); } catch (e) { yield { ev: 'error', msg: String(e.message || e) }; return; }
+    const st0 = this.game.view(b).status;
+    if (st0.over) { yield { ev: 'gameover', status: st0 }; return; }
     for (const { brain, ent } of this.sync(moves)) {
       const { bits, ...entry } = ent;
       yield { ev: 'step', t: ent.t, ms: ent.ms, brain, entry };
@@ -161,10 +152,10 @@ export class GameSession {
     const ch = this.pick(6, temperature);
     if (!ch) { yield { ev: 'error', msg: 'no legal move in the vocabulary' }; return; }
     yield { ev: 'choice', ...ch };
-    const { brain, ent } = this.push(ch.uci);
+    const { brain, ent } = this.push(ch.move);
     const { bits, ...entry } = ent;
     yield { ev: 'step', t: ent.t, ms: ent.ms, brain, entry };
-    yield { ev: 'final', uci: ch.uci, san: ch.san, p: ch.p, candidates: ch.candidates,
-            hist: this.compactHist(), state: boardState(this.game, this.moves) };
+    yield { ev: 'final', move: ch.move, label: ch.label, p: ch.p, candidates: ch.candidates,
+            hist: this.compactHist(), state: this.game.view(this.state) };
   }
 }

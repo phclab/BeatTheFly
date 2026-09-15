@@ -1,0 +1,5 @@
+{
+ "strength_text": "Beats simple greedy and corner-heuristic bots about 80–86% of the time; scores about one third against the Edax engine at level 1 (32–1–67 in 100 games).",
+ "match_note": "100 games per opponent, colours swapped",
+ "eval_md": "Agreement with the engine's move on 10,570 held-out Egaroucid games (legal moves only): 50.1% overall (moves 1–15 43.4%, 16–30 38.6%, 31–45 39.6%, 46+ 61.2%)."
+}

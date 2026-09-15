@@ -1,0 +1,501 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly: Chess</title>
+<meta name="description" content="BeatTheFly: play chess against a smart fruit fly. A spiking neural network wired from the real Drosophila mushroom-body connectome (MaleCNS), running in your browser.">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/chess/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="BeatTheFly: Chess">
+<meta property="og:description" content="BeatTheFly: play chess against a smart fruit fly. A spiking neural network wired from the real Drosophila mushroom-body connectome (MaleCNS), running in your browser.">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/chess/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../ui/app.css">
+</head>
+<body>
+<header>
+  <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
+  <div class="tagline">A Smart Fruit Fly is playing chess against you</div>
+  <div class="attrib">Wiring: real fruit fly brain (<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS
+  mushroom body connectome</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>)
+  <span class="sep">·</span> Synaptic weights: trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode</div>
+  <div class="claim">The anatomical connectome gives you wiring, not synaptic strengths. Ours are trained.</div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+
+<div class="wrap">
+  <div id="colBoard">
+    <div class="card">
+      <h2>Board</h2>
+      <div class="capbar" id="capTop"><span class="who">FLY</span></div>
+      <div id="boardstage"><div id="boardwrap"></div>
+        <button id="skipfly" class="sm">skip</button></div>
+      <div class="capbar" id="capBot" style="margin-top:6px"><span class="who">YOU</span></div>
+      <div id="status"></div>
+      <div id="flyline"></div>
+      <div id="overbox"></div>
+      <div class="row" style="margin-top:11px">
+        <button class="pri" id="newW">New game · play White</button>
+        <button class="pri" id="newB">Play Black</button>
+        <button id="flip">Flip board</button>
+        <button id="undo">Undo</button>
+        <a href="../othello/" style="margin-left:auto;font-size:13px">Play Othello →</a>
+      </div>
+    </div>
+  </div>
+  <div id="colSide">
+    <div class="card">
+      <h2>Game</h2>
+      <div class="row" style="margin-top:8px">
+        <span style="color:var(--dim);font-size:12px">Fly move choice:</span>
+        <button id="tg0" class="on">argmax</button>
+        <button id="tg1">sample T=0.5</button>
+        <button id="tg2">sample T=1.0</button>
+      </div>
+      <div class="moves" id="movelist"><span class="dim">No moves yet.</span></div>
+    </div>
+    <div class="card">
+      <h2>Candidate moves</h2>
+      <div id="cands"><div class="legend"><span>Make a move — the fly's move distribution appears
+        here.</span></div></div>
+      <div class="legend"><span>Probabilities are the readout restricted to <b>legal</b> moves
+        (chess.js decides legality, so the fly always plays a legal move).</span></div>
+    </div>
+    <div id="brainPanels"></div>
+  </div>
+  <div id="colNotes">
+    <div class="card">
+      <h2>What you are playing</h2>
+      <div class="note"><p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
+  connectome</b> — 4,510 measured neurons, 1,027,152 neuron-to-neuron connections, excitatory/inhibitory signs from
+  neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma
+  positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries
+  forward from move to move, so what you see at move 40 descends from move 1. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.</p></div>
+    </div>
+    <div id="notePanels"></div>
+  </div>
+</div>
+<footer>
+  <b>Attribution.</b> Connectome, neurotransmitter annotations, soma coordinates and neuron skeletons:
+  <a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a> (male
+  <i>Drosophila melanogaster</i> central nervous system, Janelia FlyEM and collaborators), used under
+  <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a>.
+  Synaptic weights: trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a>
+  parallel-scan mode, deployment in sequential RSNN mode.
+  <span class="byline">made by Po-Han Chiang @ NYCU</span>. Chess rules: <b>chess.js</b> © Jeff Hlywa, BSD-2-Clause
+  (<a href="../vendor/LICENSE.chessjs">license</a>). Data sources: human games from the
+  <a href="https://database.lichess.org/" target="_blank" rel="noopener">Lichess open database</a> (lichess.org, CC0); move labels
+  from the <a href="https://stockfishchess.org/" target="_blank" rel="noopener">Stockfish</a> chess engine. Board, piece artwork, fly cartoon and atlas renderer are original to this project.
+  <span id="footck"></span>
+</footer>
+<div id="loader"><div class="box">
+  <h3 id="ldH">Loading the fly's brain…</h3>
+  <div class="sub" id="ldS">Downloading the trained connectome weights. Everything runs locally in this tab.</div>
+  <div class="pbar"><i id="ldBar"></i></div>
+  <div class="pl" id="ldP">starting…</div>
+</div></div>
+
+<script src="../config.js"></script>
+<script type="module">
+import { Chess } from '../vendor/chess.esm.js';
+import { $, esc, ST, FLY, rpc, start, newSession, think, mountPanels, flyBegin, flyEnd, flyThinking, flyPlace, flyTo,
+         carryShow, carryHide, puff, flyToSquare, carryTo } from '../ui/shell.js';
+
+mountPanels(`<p>In a real <i>Drosophila</i> this circuit learns odour→reward associations. Here the identical
+  wiring is fed chess: 789 board features (occupancy, castling rights, en-passant file, 50-move
+  clock, canonicalised to the side to move) plus the move history as tokens, projected onto the
+  Kenyon cells. The circuit takes <b>one timestep per move</b>; the readout of that timestep is the
+  move. Because the state is carried and never reset, the lateral signal keeps propagating across the
+  whole game.</p>
+  <p class="small">Move legality and SAN: <a href="https://github.com/jhlywa/chess.js">chess.js</a> by Jeff Hlywa
+  (BSD-2-Clause), vendored locally with its <a href="../vendor/LICENSE.chessjs">copyright notice</a>. The spiking
+  network runs in this page as plain JavaScript in a Web Worker and is checked numerically against the reference
+  implementation. The board, the chess piece artwork, the fly cartoon and the brain atlas renderer are original
+  work for this project — no third-party board library and no third-party piece set.</p>`);
+
+Object.assign(ST, { human: 'white', orient: 'white', legal: [], fen: null, turn: 'w',
+                    sanHistory: [], captured: { w: [], b: [] }, advantage: { w: 0, b: 0 } });
+const game = new Chess();
+
+const P_SVG = (() => {
+  const wrap = (body, light) => encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">` +
+    `<g fill="${light ? '#f7f4ee' : '#2b2f37'}" stroke="${light ? '#3a3f49' : '#0c0e12'}" ` +
+    `stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">${body}</g></svg>`);
+  const BASE = `<path d="M10 38h25a2 2 0 0 1 0 4H10a2 2 0 0 1 0-4z"/>`;
+  const bodies = {
+    pawn:  `<circle cx="22.5" cy="13" r="5.6"/>
+            <path d="M17 19c-1 3 1.6 5 1.6 5-3.4 2.6-5.1 8-5.1 14h18c0-6-1.7-11.4-5.1-14 0 0 2.6-2 1.6-5z"/>${BASE}`,
+    rook:  `<path d="M12 9h5v3h4V9h3v3h4V9h5v8l-3 2v15l3 2v3H12v-3l3-2V19l-3-2z"/>${BASE}`,
+    knight:`<path d="M31.5 38.5V26c0-6.4-2.6-10.7-7.2-12.4l.9-4.1-3.6-.9-1.1 4.6c-2.3.25-4.3 1.15-6 2.7l-3.2-2.6-2.1 2.8 3.4 2.7c-1 1.8-1.6 3.8-1.6 5.9 0 1.3.95 2.15 2.1 2.15 1 0 1.75-.55 2.05-1.4l1.35-3.4 2.85 1.3-2.7 4.8c-3.6 2.2-5.1 5.6-5.1 9.35z"/>
+            <circle cx="22.6" cy="17.4" r="1.25" fill="#0c0e12" stroke="none"/>${BASE}`,
+    bishop:`<path d="M22.5 5c2.2 0 3.6 1.6 3.6 3.3 0 1.2-.6 2-1.3 2.6 4 2.6 6.4 6.6 6.4 11 0 3.4-1.6 5.6-3.6 6.8H17.4c-2-1.2-3.6-3.4-3.6-6.8 0-4.4 2.4-8.4 6.4-11-.7-.6-1.3-1.4-1.3-2.6C18.9 6.6 20.3 5 22.5 5z"/>
+            <path d="M22.5 12v9M18.5 16.5h8" stroke-width="1.6"/>
+            <path d="M15 29h15v4H15z"/>${BASE}`,
+    queen: `<circle cx="8" cy="12" r="2.6"/><circle cx="16" cy="9" r="2.6"/><circle cx="22.5" cy="7.5" r="2.9"/>
+            <circle cx="29" cy="9" r="2.6"/><circle cx="37" cy="12" r="2.6"/>
+            <path d="M9 15l3.5 15h20L36 15l-5.5 7-3-10-5 11-5-11-3 10z"/>
+            <path d="M12 31h21v4H12z"/>${BASE}`,
+    king:  `<path d="M20.7 3h3.6v4.3H28.2v3.6h-3.9v4.4h-3.6v-4.4H16.8V7.3h3.9z"/>
+            <path d="M22.5 14.6c-5.3 0-9.6 3.7-9.6 8.3 0 3.1 1.9 5.6 4.4 7.1l-1.3 4.4h13l-1.3-4.4c2.5-1.5 4.4-4 4.4-7.1 0-4.6-4.3-8.3-9.6-8.3z"/>
+            <path d="M13.5 33.2h18v3.2h-18z"/>${BASE}`,
+  };
+  const out = {};
+  const KEY = { pawn: 'P', rook: 'R', knight: 'N', bishop: 'B', queen: 'Q', king: 'K' };
+  for (const [k, v] of Object.entries(bodies))
+    for (const c of ['w', 'b']) out[c + KEY[k]] = 'data:image/svg+xml,' + wrap(v, c === 'w');
+  return out;
+})();
+
+const BD = { el: null, pieces: {}, orient: 'white', fen: null, dests: new Map(), movable: null, last: null, check: null,
+             onMove: null, sel: null, drag: null };
+
+function boardInit(host, onMove) {
+  BD.el = host; BD.onMove = onMove;
+  host.classList.add('bd');
+  host.innerHTML = '';
+  const layer = document.createElement('div'); layer.className = 'bd-sq'; host.appendChild(layer);
+  const pl = document.createElement('div'); pl.className = 'bd-pc'; host.appendChild(pl);
+  BD.sqLayer = layer; BD.pcLayer = pl;
+  for (let i = 0; i < 64; i++) { const d = document.createElement('div'); d.className = 'sq'; layer.appendChild(d); }
+  host.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMoveEvt);
+  window.addEventListener('pointerup', onUp);
+}
+function fileRank(sq) { return ['abcdefgh'.indexOf(sq[0]), parseInt(sq[1], 10) - 1]; }
+function sqName(c, r) { return 'abcdefgh'[c] + (r + 1); }
+function colRow(sq) { const [f, r] = fileRank(sq); return BD.orient === 'white' ? [f, 7 - r] : [7 - f, r]; }
+function sqAt(x, y) {
+  const b = BD.el.getBoundingClientRect(), s = b.width / 8;
+  const c = Math.floor((x - b.left) / s), r = Math.floor((y - b.top) / s);
+  if (c < 0 || c > 7 || r < 0 || r > 7) return null;
+  return BD.orient === 'white' ? sqName(c, 7 - r) : sqName(7 - c, r);
+}
+function parseFEN(fen) {
+  const out = {}; const rows = fen.split(' ')[0].split('/');
+  for (let r = 0; r < 8; r++) { let f = 0;
+    for (const ch of rows[r]) {
+      if (/\d/.test(ch)) f += +ch;
+      else { out[sqName(f, 7 - r)] = (ch === ch.toUpperCase() ? 'w' : 'b') + ch.toUpperCase(); f++; }
+    }
+  }
+  return out;
+}
+function boardSet(o) {
+  if (o.orientation) BD.orient = o.orientation;
+  if (o.fen !== undefined) { BD.fen = o.fen; BD.override = null; }
+  if (o.dests !== undefined) BD.dests = o.dests || new Map();
+  if (o.movable !== undefined) BD.movable = o.movable;
+  if (o.lastMove !== undefined) BD.last = o.lastMove;
+  if (o.check !== undefined) BD.check = o.check;
+  BD.sel = null;
+  boardRender();
+}
+function boardShowMap(map) {
+  BD.override = Object.assign({}, map);
+  BD.movable = null; BD.dests = new Map(); BD.sel = null;
+  boardRender();
+}
+function boardRender() {
+  if (!BD.fen) return;
+  const pos = BD.override || parseFEN(BD.fen);
+  const b = BD.el.getBoundingClientRect(), s = (b.width || BD.el.clientWidth || 320) / 8;
+  const kids = BD.sqLayer.children;
+  const destSet = BD.sel ? new Set(BD.dests.get(BD.sel) || []) : null;
+  let kingSq = null;
+  if (BD.check) for (const [sq, p] of Object.entries(pos)) if (p === (BD.check === 'white' ? 'wK' : 'bK')) kingSq = sq;
+  for (let i = 0; i < 64; i++) {
+    const c = i % 8, r = (i - c) / 8;
+    const sq = BD.orient === 'white' ? sqName(c, 7 - r) : sqName(7 - c, r);
+    const [f, rr] = fileRank(sq);
+    const d = kids[i];
+    d.className = 'sq' + (((f + rr) % 2) ? ' lt' : ' dk')
+      + (BD.last && (BD.last[0] === sq || BD.last[1] === sq) ? ' last' : '')
+      + (BD.sel === sq ? ' sel' : '')
+      + (destSet && destSet.has(sq) ? (pos[sq] ? ' dest cap' : ' dest') : '')
+      + (kingSq === sq ? ' chk' : '');
+    d.dataset.sq = sq;
+    d.innerHTML = (c === 0 ? '<i class="cr">' + (BD.orient === 'white' ? 8 - r : r + 1) + '</i>' : '')
+                + (r === 7 ? '<i class="cf">' + (BD.orient === 'white' ? 'abcdefgh'[c] : 'hgfedcba'[c]) + '</i>' : '');
+  }
+  const want = {};
+  for (const [sq, p] of Object.entries(pos)) want[sq] = p;
+  for (const [sq, el] of Object.entries(BD.pieces)) if (want[sq] !== el.dataset.p) { el.remove(); delete BD.pieces[sq]; }
+  for (const [sq, p] of Object.entries(want)) {
+    let el = BD.pieces[sq];
+    if (!el) {
+      el = document.createElement('div'); el.className = 'pc';
+      el.dataset.p = p; el.style.backgroundImage = 'url("' + P_SVG[p] + '")';
+      BD.pcLayer.appendChild(el); BD.pieces[sq] = el;
+    }
+    const [c, r] = colRow(sq);
+    el.style.width = el.style.height = s + 'px';
+    el.style.transform = 'translate(' + (c * s) + 'px,' + (r * s) + 'px)';
+    el.dataset.sq = sq;
+  }
+}
+function canMoveFrom(sq) {
+  if (!BD.movable) return false;
+  const p = parseFEN(BD.fen)[sq];
+  if (!p) return false;
+  if ((p[0] === 'w' ? 'white' : 'black') !== BD.movable) return false;
+  return BD.dests.has(sq);
+}
+function onDown(e) {
+  const sq = sqAt(e.clientX, e.clientY); if (!sq) return;
+  if (BD.sel && BD.sel !== sq && (BD.dests.get(BD.sel) || []).includes(sq)) {
+    const from = BD.sel; BD.sel = null; boardRender(); BD.onMove(from, sq); return;
+  }
+  if (!canMoveFrom(sq)) { BD.sel = null; boardRender(); return; }
+  BD.sel = sq; boardRender();
+  const el = BD.pieces[sq]; if (!el) return;
+  const b = BD.el.getBoundingClientRect(), s = b.width / 8;
+  BD.drag = { sq, el, s, b, moved: false };
+  el.classList.add('drag');
+  e.preventDefault();
+}
+function onMoveEvt(e) {
+  if (!BD.drag) return;
+  const { el, s, b } = BD.drag;
+  BD.drag.moved = true;
+  el.style.transform = 'translate(' + (e.clientX - b.left - s / 2) + 'px,' + (e.clientY - b.top - s / 2) + 'px)';
+}
+function onUp(e) {
+  if (!BD.drag) return;
+  const d = BD.drag; BD.drag = null;
+  d.el.classList.remove('drag');
+  const to = sqAt(e.clientX, e.clientY);
+  if (d.moved) {
+    if (to && to !== d.sq && (BD.dests.get(d.sq) || []).includes(to)) { BD.sel = null; boardRender(); BD.onMove(d.sq, to); return; }
+    boardRender();
+  }
+}
+
+function destsMap() {
+  const m = new Map();
+  for (const mv of ST.legal) {
+    const o = mv.uci.slice(0, 2), d = mv.uci.slice(2, 4);
+    if (!m.has(o)) m.set(o, []);
+    const a = m.get(o); if (!a.includes(d)) a.push(d);
+  }
+  return m;
+}
+const sideToMoveColor = () => ST.turn === 'w' ? 'white' : 'black';
+function syncBoard() {
+  const lm = ST.moves.length ? [ST.moves[ST.moves.length - 1].slice(0, 2), ST.moves[ST.moves.length - 1].slice(2, 4)] : undefined;
+  const myTurn = !ST.status.over && !ST.busy && sideToMoveColor() === ST.human;
+  boardSet({ fen: ST.fen, orientation: ST.orient, lastMove: lm,
+             check: ST.status.check ? sideToMoveColor() : null,
+             movable: myTurn ? ST.human : null,
+             dests: myTurn ? destsMap() : new Map() });
+}
+function onUserMove(orig, dest) {
+  if (ST.busy || ST.status.over) { syncBoard(); return; }
+  const opts = ST.legal.filter(m => m.uci.slice(0, 2) === orig && m.uci.slice(2, 4) === dest);
+  if (!opts.length) { syncBoard(); return; }
+  if (opts.length === 1) { play(opts[0].uci); return; }
+  askPromotion(opts, dest);
+}
+function askPromotion(opts, dest) {
+  const NAME = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' };
+  const div = document.createElement('div'); div.className = 'promo';
+  const box = document.createElement('div'); box.className = 'box';
+  box.innerHTML = '<div style="font-size:14px">Promote on <b>' + esc(dest) + '</b></div>';
+  const pcs = document.createElement('div'); pcs.className = 'pcs';
+  ['q', 'r', 'b', 'n'].forEach(t => {
+    const o = opts.find(m => m.promo === t); if (!o) return;
+    const el = document.createElement('div');
+    el.title = NAME[t]; el.className = 'promo-pc';
+    el.dataset.uci = o.uci; el.dataset.piece = NAME[t] + ' ' + ST.human;
+    pcs.appendChild(el);
+  });
+  box.appendChild(pcs); div.appendChild(box);
+  div.addEventListener('click', e => {
+    const u = e.target && e.target.dataset && e.target.dataset.uci;
+    document.body.removeChild(div);
+    if (u) play(u); else syncBoard();
+  });
+  document.body.appendChild(div);
+  div.querySelectorAll('.promo-pc').forEach(el => spriteInto(el, el.dataset.piece));
+}
+function spriteInto(el, cls) {
+  const [type, colour] = cls.split(' ');
+  const k = (colour === 'white' ? 'w' : 'b') + { pawn: 'P', knight: 'N', bishop: 'B', rook: 'R', queen: 'Q', king: 'K' }[type];
+  if (P_SVG[k]) el.style.backgroundImage = 'url("' + P_SVG[k] + '")';
+  el.style.backgroundSize = 'contain'; el.style.backgroundRepeat = 'no-repeat';
+  el.style.backgroundPosition = 'center';
+}
+
+async function validate() { applyState(await rpc('validate', { moves: ST.moves })); }
+function applyState(s) {
+  ST.legal = s.legal; ST.fen = s.fen; ST.turn = s.turn; ST.status = s.status;
+  ST.sanHistory = s.san_history || []; ST.captured = s.captured || { w: [], b: [] }; ST.advantage = s.advantage || { w: 0, b: 0 };
+  try { game.load(s.fen); } catch (_) {}
+  syncBoard(); renderMoves(); renderCaptured(); renderStatus(); renderOver();
+}
+async function play(uci) {
+  ST.moves.push(uci);
+  try {
+    game.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] || undefined });
+    ST.fen = game.fen(); ST.turn = game.turn(); ST.status = { over: false, check: game.inCheck() }; ST.legal = [];
+    syncBoard();
+  } catch (_) {}
+  try { await validate(); }
+  catch (e) { ST.moves.pop(); await validate(); renderStatus('rejected: ' + e.message); return; }
+  if (!ST.status.over && sideToMoveColor() !== ST.human) setTimeout(think, 60);
+}
+
+function renderMoves() {
+  const h = ST.sanHistory, rows = []; const flyIsWhite = ST.human === 'black';
+  for (let i = 0; i < h.length; i += 2)
+    rows.push('<tr><td class="n">' + (i / 2 + 1) + '.</td><td class="' + (flyIsWhite ? 'f' : '') + '">' + esc(h[i]) +
+      '</td><td class="' + (flyIsWhite ? '' : 'f') + '">' + (h[i + 1] ? esc(h[i + 1]) : '') + '</td></tr>');
+  $('movelist').innerHTML = rows.length ? '<table>' + rows.join('') + '</table>'
+    : '<span class="dim">No moves yet. Fly moves are shown in gold.</span>';
+  $('movelist').scrollTop = 1e6;
+}
+const PNAME = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+function capRow(hostId, label, lostBy, adv) {
+  const host = $(hostId); host.innerHTML = '<span class="who">' + label + '</span>';
+  const colour = lostBy === 'w' ? 'white' : 'black';
+  const order = ['q', 'r', 'b', 'n', 'p'];
+  for (const t of (ST.captured[lostBy] || []).slice().sort((a, b) => order.indexOf(a) - order.indexOf(b))) {
+    const s = document.createElement('span'); s.className = 'cpc';
+    spriteInto(s, PNAME[t] + ' ' + colour); host.appendChild(s);
+  }
+  if (adv > 0) { const a = document.createElement('span'); a.className = 'adv'; a.textContent = '+' + adv; host.appendChild(a); }
+}
+function renderCaptured() {
+  const flyC = ST.human === 'white' ? 'b' : 'w', humC = ST.human === 'white' ? 'w' : 'b';
+  capRow('capTop', 'FLY', humC, ST.advantage[flyC]);
+  capRow('capBot', 'YOU', flyC, ST.advantage[humC]);
+}
+function renderStatus(extra) {
+  const s = ST.status; let t;
+  if (s.over) {
+    const who = s.result === '1-0' ? 'White wins' : s.result === '0-1' ? 'Black wins' : 'Draw';
+    t = '<span class="big">' + who + '</span> <span style="color:var(--dim)">— ' + esc(s.reason || '') + '</span>';
+  } else {
+    const side = ST.turn === 'w' ? 'White' : 'Black';
+    const mine = sideToMoveColor() === ST.human;
+    t = '<span class="big">' + side + ' to move</span> <span style="color:var(--dim)">— ' +
+      (mine ? 'your turn' : (ST.busy ? 'the fly is thinking…' : 'the fly is up')) + '</span>' +
+      (s.check ? ' <span class="warn">check</span>' : '');
+  }
+  $('status').innerHTML = t + (extra ? ' <span style="color:var(--dim)">' + esc(extra) + '</span>' : '');
+}
+function renderOver() {
+  const s = ST.status;
+  $('overbox').innerHTML = s.over
+    ? '<div class="over">Game over — <b>' + esc(s.reason || '') + '</b> (' + esc(s.result || '') +
+      '). Press <b>New game</b> to play again.</div>' : '';
+}
+
+function sqCenter(sq) {
+  const w = $('boardwrap').clientWidth || 0, s = w / 8;
+  let col = 'abcdefgh'.indexOf(sq[0]), row = 8 - parseInt(sq[1], 10);
+  if (ST.orient === 'black') { col = 7 - col; row = 7 - row; }
+  return [(col + 0.5) * s, (row + 0.5) * s];
+}
+const PT = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+const pieceSprite = (type, colour) => size => {
+  const el = document.createElement('div');
+  el.style.width = size + 'px'; el.style.height = size + 'px';
+  spriteInto(el, type + ' ' + colour);
+  return el;
+};
+
+async function flyPlayMove(ev, preFen) {
+  const gen = ST.gen;
+  flyBegin();
+  let landed = false;
+  const land = () => { if (gen === ST.gen) applyState(ev.state); carryHide(); landed = true; };
+  try {
+    const uci = ev.move, from = uci.slice(0, 2), to = uci.slice(2, 4), promo = uci[4] || null;
+    const g = new Chess(preFen);
+    const mover = g.get(from), target = g.get(to);
+    const isCastle = !!mover && mover.type === 'k' && Math.abs('abcdefgh'.indexOf(to[0]) - 'abcdefgh'.indexOf(from[0])) > 1;
+    const isEP = !!mover && mover.type === 'p' && from[0] !== to[0] && !target;
+    const epSq = isEP ? to[0] + from[1] : null;
+    const colour = mover && mover.color === 'b' ? 'black' : 'white';
+    const type = mover ? PT[mover.type] : 'pawn';
+    const ROOK = { e1g1: ['h1', 'f1'], e1c1: ['a1', 'd1'], e8g8: ['h8', 'f8'], e8c8: ['a8', 'd8'] }[uci] || null;
+    const pre = parseFEN(preFen);
+    boardShowMap(pre);
+    flyThinking(false);
+    await flyToSquare(from);
+    const m1 = Object.assign({}, pre); delete m1[from];
+    boardShowMap(m1); carryShow(pieceSprite(type, colour));
+    await carryTo(from, to);
+    if (isCastle && ROOK) {
+      const m2 = Object.assign({}, m1); m2[to] = pre[from];
+      boardShowMap(m2); carryHide();
+      await flyToSquare(ROOK[0]);
+      const m3 = Object.assign({}, m2); delete m3[ROOK[0]];
+      boardShowMap(m3); carryShow(pieceSprite('rook', colour));
+      await carryTo(ROOK[0], ROOK[1]);
+    }
+    if (target) puff(to, 'hit');
+    if (epSq) puff(epSq, 'hit');
+    land();
+    if (promo) puff(to, 'gold');
+    const [tx, ty] = sqCenter(isCastle && ROOK ? ROOK[1] : to);
+    await flyTo(tx, ty - 22, 120);
+  } catch (e) {
+    console.warn('fly animation aborted', e);
+  } finally {
+    if (!landed && gen === ST.gen) applyState(ev.state);
+    flyEnd();
+  }
+}
+
+async function newGame(colour) {
+  ST.moves = []; ST.human = colour; ST.orient = colour;
+  try { await newSession(); } catch (e) { renderStatus('cannot start the engine: ' + e.message); return; }
+  await validate();
+  if (sideToMoveColor() !== ST.human) setTimeout(think, 120);
+}
+
+$('newW').onclick = () => newGame('white');
+$('newB').onclick = () => newGame('black');
+$('flip').onclick = () => { ST.orient = ST.orient === 'white' ? 'black' : 'white'; syncBoard(); };
+$('undo').onclick = async () => {
+  if (ST.busy || !ST.moves.length) return;
+  const target = ST.human === 'white' ? 0 : 1;
+  ST.moves.pop();
+  while (ST.moves.length > 0 && ST.moves.length % 2 !== target) ST.moves.pop();
+  await validate();
+  if (!ST.status.over && sideToMoveColor() !== ST.human) setTimeout(think, 120);
+};
+
+boardInit($('boardwrap'), onUserMove);
+start({
+  kind: 'chess',
+  render: boardRender,
+  sync: syncBoard,
+  renderStatus,
+  sqCenter,
+  vocabText: v => v + ' UCI tokens',
+  onGameOver(status) { ST.status = status; renderStatus(); renderOver(); },
+  onFinal(ev) { const preFen = ST.fen; ST.moves.push(ev.move); return flyPlayMove(ev, preFen); },
+  caveat(st) {
+    const pc = v => (100 * v).toFixed(1) + '%';
+    if (!st || !st.elo_text) return { html: '<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet. ' +
+      'Every move is restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.' };
+    return {
+      html: '<b>Honest caveat.</b> This is not a strong engine: ' + esc(st.elo_text) +
+        (st.vs_previous_text ? ' (' + esc(st.vs_previous_text) + ')' : '') + '. On ' + esc(st.test_label) + ' it picks Stockfish\'s best move <b>' +
+        pc(st.sf_agreement) + '</b> of the time (opening ' + pc(st.sf_opening) + ', early middlegame ' + pc(st.sf_early_mid) +
+        ', middlegame ' + pc(st.sf_middlegame) + ', endgame ' + pc(st.sf_endgame) + ') and the move the human played ' +
+        pc(st.human_move_match) + '. There is no search and no evaluation function: each move is one timestep of the ' +
+        'network, restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.',
+      row: esc(st.elo_text) + ' · Stockfish best-move agreement ' + pc(st.sf_agreement) + ' · human move-match ' + pc(st.human_move_match),
+    };
+  },
+}).then(() => newGame('white'));
+</script>
+</body>
+</html>

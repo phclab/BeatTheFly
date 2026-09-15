@@ -1,0 +1,318 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly: Othello</title>
+<meta name="description" content="BeatTheFly: play Othello against a smart fruit fly. A spiking neural network wired from the real Drosophila mushroom-body connectome (MaleCNS), running in your browser.">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/othello/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="BeatTheFly: Othello">
+<meta property="og:description" content="BeatTheFly: play Othello against a smart fruit fly. A spiking neural network wired from the real Drosophila mushroom-body connectome (MaleCNS), running in your browser.">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/othello/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../ui/app.css">
+</head>
+<body>
+<header>
+  <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
+  <div class="tagline">A Smart Fruit Fly is playing Othello against you</div>
+  <div class="attrib">Wiring: real fruit fly brain (<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS
+  mushroom body connectome</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>)
+  <span class="sep">·</span> Synaptic weights: trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode</div>
+  <div class="claim">The anatomical connectome gives you wiring, not synaptic strengths. Ours are trained.</div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+
+<div class="wrap">
+  <div id="colBoard">
+    <div class="card">
+      <h2>Board</h2>
+      <div class="capbar" id="capTop"></div>
+      <div id="boardstage"><div id="boardwrap" class="ob"></div>
+        <button id="skipfly" class="sm">skip</button></div>
+      <div class="capbar" id="capBot" style="margin-top:6px"></div>
+      <div id="status"></div>
+      <div id="flyline"></div>
+      <div id="overbox"></div>
+      <div class="row" style="margin-top:11px">
+        <button class="pri" id="newB">New game · play Black</button>
+        <button class="pri" id="newW">Play White</button>
+        <button id="flip">Flip board</button>
+        <button id="undo">Undo</button>
+        <a href="../chess/" style="margin-left:auto;font-size:13px">Play chess →</a>
+      </div>
+    </div>
+  </div>
+  <div id="colSide">
+    <div class="card">
+      <h2>Game</h2>
+      <div class="row" style="margin-top:8px">
+        <span style="color:var(--dim);font-size:12px">Fly move choice:</span>
+        <button id="tg0" class="on">argmax</button>
+        <button id="tg1">sample T=0.5</button>
+        <button id="tg2">sample T=1.0</button>
+      </div>
+      <div class="moves" id="movelist"><span class="dim">No moves yet.</span></div>
+    </div>
+    <div class="card">
+      <h2>Candidate moves</h2>
+      <div id="cands"><div class="legend"><span>Make a move — the fly's move distribution appears
+        here.</span></div></div>
+      <div class="legend"><span>Probabilities are the readout restricted to <b>legal</b> squares
+        (a pass is played only when no square is legal).</span></div>
+    </div>
+    <div id="brainPanels"></div>
+  </div>
+  <div id="colNotes">
+    <div class="card">
+      <h2>What you are playing</h2>
+      <div class="note"><p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
+  connectome</b> — 4,510 measured neurons, 1,027,152 neuron-to-neuron connections, excitatory/inhibitory signs from
+  neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma
+  positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries
+  forward from move to move, so what you see at move 40 descends from move 1. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.</p></div>
+    </div>
+    <div id="notePanels"></div>
+  </div>
+</div>
+<footer>
+  <b>Attribution.</b> Connectome, neurotransmitter annotations, soma coordinates and neuron skeletons:
+  <a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a> (male
+  <i>Drosophila melanogaster</i> central nervous system, Janelia FlyEM and collaborators), used under
+  <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a>.
+  Synaptic weights: trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a>
+  parallel-scan mode, deployment in sequential RSNN mode.
+  <span class="byline">made by Po-Han Chiang @ NYCU</span>. Data source:
+  <a href="https://www.egaroucid.nyanyan.dev/en/technology/train-data/" target="_blank" rel="noopener">Egaroucid Free Training Data</a>
+  (Takuto Yamana). Board, discs, fly cartoon and atlas renderer are original to this project.
+  <span id="footck"></span>
+</footer>
+<div id="loader"><div class="box">
+  <h3 id="ldH">Loading the fly's brain…</h3>
+  <div class="sub" id="ldS">Downloading the trained connectome weights. Everything runs locally in this tab.</div>
+  <div class="pbar"><i id="ldBar"></i></div>
+  <div class="pl" id="ldP">starting…</div>
+</div></div>
+
+<script src="../config.js"></script>
+<script type="module">
+import { $, esc, sleep, ST, FLY, start, newSession, think, mountPanels, flyBegin, flyEnd, flyThinking, flyTo,
+         carryShow, carryHide, flyToSquare } from '../ui/shell.js';
+import { replay, boardState, flipsFor, nameSq, sqName, isOver, mustPass } from '../engine/othello.js';
+
+mountPanels(`<p>In a real <i>Drosophila</i> this circuit learns odour→reward associations. Here the identical
+  wiring is fed Othello: 138 board features (own discs, opponent discs, side to move, a disc-count bucket)
+  plus the move history as tokens, projected onto the Kenyon cells. The circuit takes <b>one timestep per
+  move</b>, forced passes included; the readout of that timestep is the move. Because the state is carried and
+  never reset, the lateral signal keeps propagating across the whole game.</p>
+  <p class="small">Othello rules, the board, the fly cartoon and the brain atlas renderer are original code for this
+  project. The spiking network runs in this page as plain JavaScript in a Web Worker and is checked numerically
+  against the reference implementation.</p>`);
+
+Object.assign(ST, { human: 'black', orient: 'normal', cells: new Array(64).fill(0), turn: 'b', legal: [],
+                    mustPass: false, counts: { b: 2, w: 2 }, last: null });
+const board = $('boardwrap');
+const cellEls = [];
+for (let i = 0; i < 64; i++) {
+  const d = document.createElement('div'); d.className = 'osq';
+  d.innerHTML = '<div class="disc" hidden></div>';
+  d.addEventListener('click', () => onCellClick(i));
+  board.appendChild(d); cellEls.push(d);
+}
+const sqOfIdx = i => { const r = Math.floor(i / 8), c = i % 8; return ST.orient === 'normal' ? r * 8 + c : (7 - r) * 8 + (7 - c); };
+const humanColour = () => (ST.human === 'black' ? 'b' : 'w');
+const myTurn = () => !ST.status.over && !ST.busy && ST.turn === humanColour() && !ST.mustPass;
+
+function render(cells = ST.cells, opts = {}) {
+  const legal = myTurn() && !opts.cells ? new Set(ST.legal) : new Set();
+  for (let i = 0; i < 64; i++) {
+    const sq = sqOfIdx(i), name = sqName(sq), el = cellEls[i], v = cells[sq];
+    el.className = 'osq' + (legal.has(name) ? ' can' : '');
+    const disc = el.firstChild;
+    if (v) {
+      disc.hidden = false;
+      disc.className = 'disc ' + (v === 1 ? 'b' : 'w') + (opts.flip === sq ? ' flip' : '');
+    } else disc.hidden = true;
+    let extra = '';
+    if (legal.has(name)) extra += '<div class="hint"></div>';
+    if ((opts.last !== undefined ? opts.last : ST.last) === name && v) extra += '<div class="lastmark"></div>';
+    const r = Math.floor(i / 8), c = i % 8;
+    if (c === 0) extra += '<i class="cr">' + (Math.floor(sq / 8) + 1) + '</i>';
+    if (r === 7) extra += '<i class="cf">' + 'abcdefgh'[sq % 8] + '</i>';
+    while (el.childNodes.length > 1) el.removeChild(el.lastChild);
+    if (extra) el.insertAdjacentHTML('beforeend', extra);
+  }
+}
+function sqCenter(name) {
+  const sq = nameSq(name), w = board.clientWidth || 0, s = w / 8;
+  const r = Math.floor(sq / 8), c = sq % 8;
+  const row = ST.orient === 'normal' ? r : 7 - r, col = ST.orient === 'normal' ? c : 7 - c;
+  return [(col + 0.5) * s, (row + 0.5) * s];
+}
+
+function applyState(s) {
+  ST.cells = s.cells; ST.turn = s.turn; ST.legal = s.legal; ST.mustPass = s.mustPass; ST.counts = s.counts; ST.status = s.status;
+  render(); renderMoves(); renderCounts(); renderStatus(); renderOver();
+  autoPass();
+}
+const localState = () => boardState(replay(ST.moves));
+
+function autoPass() {
+  if (ST.status.over || ST.busy || !ST.mustPass || ST.turn !== humanColour()) return;
+  const gen = ST.gen, n = ST.moves.length;
+  renderStatus('you have no legal move — passing');
+  setTimeout(() => { if (gen === ST.gen && ST.moves.length === n) play('pass'); }, 900);
+}
+
+async function play(move) {
+  if (move !== 'pass') {
+    const pre = ST.cells.slice(), me = ST.turn === 'b' ? 1 : 2, sq = nameSq(move);
+    const flips = flipsFor({ cells: Uint8Array.from(pre), black: ST.turn === 'b' }, sq);
+    const work = pre.slice(); work[sq] = me;
+    ST.busy = true;
+    render(work, { cells: true, last: move });
+    for (const q of flips) { work[q] = me; render(work, { cells: true, last: move, flip: q }); await sleep(55); }
+    ST.busy = false;
+    ST.last = move;
+  }
+  ST.moves.push(move);
+  applyState(localState());
+  if (!ST.status.over && ST.turn !== humanColour()) setTimeout(think, 60);
+}
+function onCellClick(i) {
+  const name = sqName(sqOfIdx(i));
+  if (myTurn() && ST.legal.includes(name)) play(name);
+}
+
+function renderMoves() {
+  const rows = [], flyIsBlack = ST.human === 'white', m = ST.moves;
+  for (let i = 0; i < m.length; i += 2)
+    rows.push('<tr><td class="n">' + (i / 2 + 1) + '.</td><td class="' + (flyIsBlack ? 'f' : '') + '">' + esc(m[i]) +
+      '</td><td class="' + (flyIsBlack ? '' : 'f') + '">' + (m[i + 1] ? esc(m[i + 1]) : '') + '</td></tr>');
+  $('movelist').innerHTML = rows.length ? '<table>' + rows.join('') + '</table>'
+    : '<span class="dim">No moves yet. Black moves first; fly moves are shown in gold.</span>';
+  $('movelist').scrollTop = 1e6;
+}
+function discIcon(c) { return '<span class="cdisc disc ' + c + '"></span>'; }
+function renderCounts() {
+  const fly = humanColour() === 'b' ? 'w' : 'b', you = humanColour();
+  $('capTop').innerHTML = '<span class="who">FLY</span>' + discIcon(fly) + '<span class="cnt">' + ST.counts[fly] + '</span>';
+  $('capBot').innerHTML = '<span class="who">YOU</span>' + discIcon(you) + '<span class="cnt">' + ST.counts[you] + '</span>';
+}
+function resultText() {
+  const { b, w } = ST.counts;
+  const winner = b > w ? 'b' : w > b ? 'w' : null;
+  const who = winner === null ? 'Draw' : (winner === humanColour() ? 'You win' : 'The fly wins');
+  return { who, score: 'Black ' + b + ' : ' + w + ' White' };
+}
+function renderStatus(extra) {
+  let t;
+  if (ST.status.over) {
+    const r = resultText();
+    t = '<span class="big">' + r.who + '</span> <span style="color:var(--dim)">— ' + r.score + '</span>';
+  } else {
+    const side = ST.turn === 'b' ? 'Black' : 'White';
+    const mine = ST.turn === humanColour();
+    t = '<span class="big">' + side + ' to move</span> <span style="color:var(--dim)">— ' +
+      (mine ? 'your turn' : (ST.busy ? 'the fly is thinking…' : 'the fly is up')) + '</span>';
+  }
+  $('status').innerHTML = t + (extra ? ' <span style="color:var(--dim)">' + esc(extra) + '</span>' : '');
+}
+function renderOver() {
+  if (!ST.status.over) { $('overbox').innerHTML = ''; return; }
+  const r = resultText();
+  $('overbox').innerHTML = '<div class="over">Game over — <b>' + r.who + '</b> (' + r.score + '). Press <b>New game</b> to play again.</div>';
+}
+
+const discSprite = c => size => {
+  const el = document.createElement('div');
+  el.className = 'disc ' + c;
+  el.style.width = el.style.height = size + 'px'; el.style.borderRadius = '50%';
+  return el;
+};
+
+async function flyPlayMove(ev) {
+  const gen = ST.gen;
+  flyBegin();
+  let landed = false;
+  const land = () => { if (gen === ST.gen) { ST.busy = false; applyState(ev.state); } carryHide(); landed = true; };
+  try {
+    if (ev.move === 'pass') {
+      flyThinking(true, 'pass');
+      await sleep(FLY.skip ? 0 : 900);
+      flyThinking(false);
+      land();
+      return;
+    }
+    const pre = ST.cells.slice(), colour = ST.turn, me = colour === 'b' ? 1 : 2, sq = nameSq(ev.move);
+    const flips = flipsFor({ cells: Uint8Array.from(pre), black: colour === 'b' }, sq);
+    flyThinking(false);
+    carryShow(discSprite(colour));
+    await flyToSquare(ev.move);
+    const work = pre.slice(); work[sq] = me;
+    carryHide();
+    render(work, { cells: true, last: ev.move });
+    for (const q of flips) {
+      if (FLY.skip) break;
+      work[q] = me; render(work, { cells: true, last: ev.move, flip: q });
+      await sleep(70);
+    }
+    ST.last = ev.move;
+    land();
+    const [tx, ty] = sqCenter(ev.move);
+    await flyTo(tx, ty - 22, 120);
+  } catch (e) {
+    console.warn('fly animation aborted', e);
+  } finally {
+    if (!landed && gen === ST.gen) { ST.last = ev.move !== 'pass' ? ev.move : ST.last; applyState(ev.state); }
+    flyEnd();
+  }
+}
+
+async function newGame(colour) {
+  ST.moves = []; ST.human = colour; ST.last = null;
+  try { await newSession(); } catch (e) { renderStatus('cannot start the engine: ' + e.message); return; }
+  applyState(localState());
+  if (ST.turn !== humanColour()) setTimeout(think, 120);
+}
+
+$('newB').onclick = () => newGame('black');
+$('newW').onclick = () => newGame('white');
+$('flip').onclick = () => { ST.orient = ST.orient === 'normal' ? 'flipped' : 'normal'; render(); };
+$('undo').onclick = () => {
+  if (ST.busy || !ST.moves.length) return;
+  ST.gen++;
+  do { ST.moves.pop(); } while (ST.moves.length && (() => {
+    const s = replay(ST.moves);
+    return (s.black ? 'b' : 'w') !== humanColour() || isOver(s) || mustPass(s);
+  })());
+  const lastSq = [...ST.moves].reverse().find(m => m !== 'pass');
+  ST.last = lastSq || null;
+  applyState(localState());
+  if (!ST.status.over && ST.turn !== humanColour()) setTimeout(think, 120);
+};
+
+start({
+  kind: 'othello',
+  render: () => render(),
+  sync: () => render(),
+  renderStatus,
+  sqCenter,
+  vocabText: v => v + ' tokens (64 squares, pass, start and end markers)',
+  onGameOver(status) { ST.status = status; renderStatus(); renderOver(); },
+  onFinal(ev) { ST.moves.push(ev.move); return flyPlayMove(ev); },
+  caveat(st) {
+    if (!st || !st.strength_text) return { html: '<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet. ' +
+      'There is no search and no evaluation function: each move is one timestep of the network, restricted to legal squares. ' +
+      'The interesting claim is <i>which substrate is computing</i>.' };
+    return { html: '<b>Honest caveat.</b> This is not a strong engine. ' + esc(st.strength_text) +
+      (st.match_note ? ' Matches: ' + esc(st.match_note) + '.' : '') + ' There is no search and no evaluation function: each move is one timestep of the network, restricted to legal squares. ' +
+      'The interesting claim is <i>which substrate is computing</i>.', row: esc(st.strength_text) };
+  },
+}).then(() => newGame('black'));
+</script>
+</body>
+</html>
