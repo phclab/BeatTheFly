@@ -235,3 +235,23 @@ header{position:relative}
 .langs a.pref{box-shadow:inset 0 0 0 1px var(--gold)}
 .claim-en{display:block;font-size:11.5px;font-weight:400;color:var(--dim);margin-top:2px}
 :lang(zh-Hant-TW) body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif}
+.gamecard .pic.pong{background:#05080e;position:relative;border:1px solid var(--line)}
+.gamecard .pic.pong::after{content:"";position:absolute;left:50%;top:6%;bottom:6%;border-left:2px dashed #1d2a3f}
+.gamecard .pic.pong i{position:absolute;display:block}
+.gamecard .pic.pong .pd{width:3%;height:26%;border-radius:3px}
+.gamecard .pic.pong .pd.l{left:5%;top:30%;background:var(--gold)} .gamecard .pic.pong .pd.r{right:5%;top:48%;background:var(--accent)}
+.gamecard .pic.pong .bl{width:4%;aspect-ratio:1;border-radius:50%;background:#f4f7ff;left:30%;top:40%}
+#court{display:block;width:100%;height:100%;touch-action:none;cursor:ns-resize}
+.score{display:flex;justify-content:space-between;align-items:center;font:600 13px/1 ui-monospace,monospace;color:var(--dim);margin:2px 2px 8px}
+.score b{font-size:22px;color:var(--ink)} .score .fly b{color:var(--gold)} .score .you b{color:var(--accent)}
+.act{display:grid;grid-template-columns:62px 1fr 52px;gap:8px;align-items:center;padding:3px 0;font:13px ui-monospace,monospace}
+.act .bar{height:13px;background:#131b2a;border-radius:6px;overflow:hidden}
+.act .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2b6fa0,#5ad1ff)}
+.act.on{color:var(--gold)} .act.on .bar i{background:linear-gradient(90deg,#a97a13,#ffc447)}
+.act .pv{text-align:right;color:#9fb0cb;font-size:12px}
+#rogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(14px,1fr));gap:3px;margin-top:10px}
+#rogrid i{display:block;aspect-ratio:1;border-radius:3px;border:1px solid transparent}
+#rogrid i.on{border-color:#fff;box-shadow:0 0 6px rgba(255,196,71,.9)}
+.rt{font:12px ui-monospace,monospace;color:#9fb0cb;margin-top:6px}
+.rt .warn{font-weight:600}
+#boardwrap.pongcourt{aspect-ratio:auto}

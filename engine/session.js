@@ -168,3 +168,33 @@ export class GameSession {
             hist: this.compactHist(), state: this.game.view(this.state) };
   }
 }
+
+export class FrameSession {
+  constructor(rsnn, info) {
+    this.net = rsnn;
+    this.brain = new Brain(info);
+    this.reset();
+  }
+
+  reset() {
+    this.net.reset();
+    this.t = 0;
+    this.spkFirst = null; this.spkPrev = null;
+  }
+
+  step(obs, ids) {
+    const t0 = now();
+    const { logits, spk, Vf } = this.net.step(0, obs, { logits: ids });
+    const ms = now() - t0;
+    const brain = this.brain.of(spk, Vf);
+    const entry = { t: this.t, ms: Math.round(ms * 100) / 100, rate: brain.rate,
+                    per_class: Object.fromEntries(Object.entries(brain.groups).map(([k, v]) => [k, v.rate])),
+                    overlap_prev: this.spkPrev ? overlap(spk, this.spkPrev) : null,
+                    overlap_first: this.spkFirst ? overlap(spk, this.spkFirst) : null };
+    if (!this.spkFirst) this.spkFirst = spk.slice();
+    this.spkPrev = spk.slice();
+    this.t++;
+    return { t: entry.t, ms: entry.ms, logits: Array.from(logits), brain, entry };
+  }
+}
+

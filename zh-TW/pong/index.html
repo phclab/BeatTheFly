@@ -1,0 +1,446 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly：Pong</title>
+<meta name="description" content="BeatTheFly：和一隻聰明的果蠅打 Pong。以真實果蠅（Drosophila）腦迴路連結體（MaleCNS）接線的脈衝神經網路即時移動球拍，直接在你的瀏覽器中執行。">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/zh-TW/pong/">
+<link rel="alternate" hreflang="en" href="https://phclab.github.io/BeatTheFly/pong/">
+<link rel="alternate" hreflang="zh-Hant-TW" href="https://phclab.github.io/BeatTheFly/zh-TW/pong/">
+<link rel="alternate" hreflang="x-default" href="https://phclab.github.io/BeatTheFly/pong/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:title" content="BeatTheFly：Pong">
+<meta property="og:description" content="BeatTheFly：和一隻聰明的果蠅打 Pong。以真實果蠅（Drosophila）腦迴路連結體（MaleCNS）接線的脈衝神經網路即時移動球拍，直接在你的瀏覽器中執行。">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/zh-TW/pong/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../ui/app.css">
+</head>
+<body>
+<header>
+  <nav class="langs" aria-label="語言"><a href="../../pong/" data-lang="en" hreflang="en">English</a> / <a href="./" data-lang="zh-TW" hreflang="zh-Hant-TW" lang="zh-Hant-TW" aria-current="page">正體中文</a></nav>
+  <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
+  <div class="tagline">一隻聰明的果蠅正在和你打 Pong</div>
+  <div class="attrib">接線：真實果蠅腦（<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS 連結體</a>，<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>）<span class="sep">·</span> 突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署</div>
+  <div class="claim">解剖連結體只給你接線，不給你突觸強度。我們的突觸強度是訓練出來的。<span class="claim-en" lang="en">The anatomical connectome gives you wiring, not synaptic strengths. Ours are trained.</span></div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+
+<div class="wrap">
+  <div id="colBoard">
+    <div class="card">
+      <h2>球場</h2>
+      <div class="score"><span class="fly"><span>果蠅</span> <b id="scL">0</b></span>
+        <span id="toWin">先得 11 分者勝</span>
+        <span class="you"><b id="scR">0</b> <span>你</span></span></div>
+      <div id="boardstage"><div id="boardwrap" class="pongcourt"><canvas id="court"></canvas></div></div>
+      <div id="status"></div>
+      <div class="rt" id="rt"></div>
+      <div id="overbox"></div>
+      <div class="row" style="margin-top:11px">
+        <button class="pri" id="play">開始</button>
+        <button id="newG">新的一局</button>
+        <a href="../chess/" style="margin-left:auto;font-size:13px">下西洋棋 →</a>
+      </div>
+      <div class="legend"><span>你是右邊的球拍。按鍵：<b>↑</b>／<b>↓</b> 或 <b>W</b>／<b>S</b>；觸控螢幕上直接在球場上拖曳。<b>空白鍵</b>暫停。</span></div>
+    </div>
+  </div>
+  <div id="colSide">
+    <div class="card" id="brainCard">
+      <h2>對手果蠅</h2>
+      <div class="regions" id="brainList"></div>
+      <div class="store"><span id="storeLine2"></span> <button id="clearStore2" class="sm" hidden>移除已下載的腦</button></div>
+    </div>
+    <div class="card">
+      <h2>果蠅的球拍指令</h2>
+      <div id="acts"></div>
+      <div id="rogrid"></div>
+      <div class="legend"><span id="roNote">每一幀的指令只從讀出神經元的膜電位讀出。方格就是這些神經元：藍色把球拍往上推，粉紅色往下推（訓練得到的讀出權重），白框表示它在這一幀發放了脈衝。它們在腦圖譜上以金色標出。</span></div>
+    </div>
+    <div id="brainPanels"></div>
+  </div>
+  <div id="colNotes">
+    <div class="card">
+      <h2>你正在和什麼對弈</h2>
+      <div class="note" id="whatNote"><p>果蠅的球拍由一個脈衝神經網路移動，它依 MaleCNS 連結體中的一個<b>真實果蠅腦迴路</b>接線，突觸權重經過訓練。它每一幀看到六個數字（球的位置與速度，以及兩邊球拍的位置），回答不動、往上或往下。網路<b>每一幀走一個時間步</b>，每秒 60 幀，一局之中狀態從不重設。它是模仿一個程式化 Pong 玩家的動作學會的。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。</p></div>
+    </div>
+    <div id="notePanels"></div>
+  </div>
+</div>
+<footer>
+  <span><b>資料來源與授權。</b>連結體、神經傳導物質標註、細胞體座標與神經元骨架：<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a>（雄性<i>黑腹果蠅</i>中樞神經系統，Janelia FlyEM 及合作者），依 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a> 授權使用。突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署。<span class="byline">made by Po-Han Chiang @ NYCU</span>。資料來源：一個程式化 Pong 玩家的動作。球場、遊戲模擬與腦圖譜繪製程式都是本專案的原創作品。</span>
+  <span id="footck"></span>
+</footer>
+<template id="mbNote"><p>在真實的果蠅中，這個迴路學習「氣味 → 獎賞」的關聯。這裡把完全相同的接線拿來控制 Pong 球拍：六個遊戲數字驅動 Kenyon cell，另一組由它們投射出的訊號驅動多巴胺神經元，迴路<b>每一幀走一個時間步</b>，球拍指令只從 97 個 MBON 的膜電位讀出，包括多巴胺閘控的快速權重記憶加在它們上面的部分。狀態在整局中延續，從不重設。</p></template>
+<div id="picker" hidden><div class="pbox">
+  <h3>選擇與你對弈的果蠅腦</h3>
+  <div class="sub">在你選擇之前不會下載任何東西。每個腦都是 MaleCNS 連結體中的一段真實迴路，各有自己訓練出的突觸權重，並完全在這個分頁中執行。你可以隨時更換腦。</div>
+  <div class="picks" id="pickList"></div>
+  <div class="store"><span id="storeLine"></span> <button id="clearStore" class="sm" hidden>移除已下載的腦</button></div>
+  <div class="pl" id="pickErr"></div>
+</div></div>
+<div id="loader"><div class="box">
+  <h3 id="ldH">正在載入果蠅的腦…</h3>
+  <div class="sub" id="ldS">正在下載訓練好的連結體權重。所有運算都在這個分頁中於本機進行。</div>
+  <div class="pbar"><i id="ldBar"></i></div>
+  <div class="pl" id="ldP">準備中…</div>
+</div></div>
+
+<script src="../../config.js"></script>
+<script type="module">
+import { t, dataFile } from '../../ui/i18n.js';
+import { openStore, modelPrefix, getComplete, usage, clearAll } from '../../engine/store.js';
+import { $, esc, SITE, ST, rpc, start, newSession, loadModel, recordFrame, drawBrain, refreshCharts, unpack, flySpriteSvg } from '../../ui/shell.js';
+import { Pong, CONST, flyObs } from '../../engine/pong.js';
+
+const MB_NOTE = document.getElementById('mbNote').innerHTML;
+const CFG = (window.FLY_CONFIG || {}).pong || {}, QS = new URLSearchParams(location.search);
+const STEP_MS = 1000 / CONST.FPS, PH = CONST.PADDLE_H, PX = CONST.PADDLE_X, R = CONST.BALL_R;
+const ACT_LABEL = () => [t('stay'), t('up'), t('down')];
+let BRAINS = [], CUR = null, SWITCHING = false, GEN = 0, RO = null;
+const G = { game: null, running: false, over: false, pending: false, up: false, down: false, drag: null, act: 0, probs: [1, 0, 0],
+            nextT: 0, win: [], ms: [], draw: 0, hits: 0, lastEv: '', timer: 0, dirty: false, paints: [], bdraws: [], lastR: null, shown: null, chartT: 0 };
+
+function specFor(b) {
+  const c = (CFG.BRAINS || {})[b.key] || {};
+  return { id: b.key, wsrc: QS.get('weights_' + b.key) || c.WEIGHTS_BASE || '', variant: QS.get('prec') || c.PRECISION || 'fp16w32',
+           skel: b.skel || 'data/mb_skel.json', note: b.id === 'mb' ? MB_NOTE : b.note,
+           region: b.id === 'mb' ? null : { id: b.id, name: b.name, intro: b.intro, cells: b.cells, rate_note: b.rate_note, strength: b.strength } };
+}
+const configured = b => { if (b.status) return false; const w = specFor(b).wsrc; return !!w && !/[<>]/.test(w); };
+const cur = () => BRAINS.find(b => b.key === CUR);
+const title = b => esc(b.name);
+const unavailable = b => b.status ? t('Still training — not available yet') : t('weights location not configured');
+
+function renderBrains() {
+  $('brainList').innerHTML = BRAINS.map(b => '<button class="region' + (b.key === CUR ? ' on' : '') + '" data-id="' + b.key + '"' +
+    (configured(b) ? '' : ' disabled') + '><b>' + title(b) + '</b><span class="rd">' + esc(b.blurb || '') + '</span>' +
+    '<span class="rs">' + (configured(b) ? esc(t('Record: {s}', { s: b.strength || t('not measured yet') })) : esc(unavailable(b))) +
+    '</span></button>').join('');
+  $('brainList').querySelectorAll('button.region').forEach(x => { x.onclick = () => chooseBrain(x.dataset.id); });
+}
+const CACHED = {};
+async function refreshStore() {
+  const db = await openStore();
+  for (const b of BRAINS) CACHED[b.key] = !!(db && b.model && await getComplete(db, modelPrefix(b.model, b.version, specFor(b).variant)));
+  const u = db ? await usage(db) : { bytes: 0, models: [] };
+  const line = !db ? t('This browser cannot keep downloaded brains; each visit downloads again.')
+    : u.models.length ? t('Stored in this browser: {mb} MB ({list}).', { mb: (u.bytes / 1e6).toFixed(1), list: u.models.map(m => esc(m.label || m.model)).join(', ') })
+    : t('Downloaded brains are kept in this browser, so each one downloads only once.');
+  for (const [l, x] of [['storeLine', 'clearStore'], ['storeLine2', 'clearStore2']]) { $(l).innerHTML = line; $(x).hidden = !u.models.length; }
+  renderPicker();
+}
+async function clearStoreClick() {
+  const db = await openStore();
+  if (db) await clearAll(db);
+  await refreshStore();
+}
+function renderPicker() {
+  $('pickList').innerHTML = BRAINS.map(b => '<button class="pick" data-id="' + b.key + '"' + (configured(b) ? '' : ' disabled') + '>' +
+    (b.thumb ? '<img src="' + esc(new URL(b.thumb, SITE).href) + '" alt="" width="200" height="130">' : '') +
+    '<b>' + esc(b.name) + '</b>' +
+    '<span class="rd">' + esc(b.blurb || '') + '</span>' +
+    (configured(b) ? '<span class="rs">' + esc(t('Record: {s}', { s: b.strength || t('not measured yet') })) + '</span>' : '') +
+    '<span class="sz">' + (!configured(b) ? esc(unavailable(b)) : CACHED[b.key] ? t('Downloaded ✓ (loads instantly)') :
+      (b.size_mb ? t('Download {mb} MB', { mb: b.size_mb.toFixed(1) }) : '')) +
+    '</span></button>').join('');
+  $('pickList').querySelectorAll('button.pick').forEach(x => { x.onclick = () => chooseBrain(x.dataset.id); });
+}
+const showPicker = on => { $('picker').hidden = !on; };
+const setBusy = on => { if (on) $('brainList').setAttribute('aria-busy', 'true'); else $('brainList').removeAttribute('aria-busy'); };
+
+function waitingState() {
+  $('brainPanels').innerHTML = '<div class="card hero"><h2>' + t('Brain atlas') + '</h2><div class="legend"><span>' +
+    t('Choose a fly brain to see its real traced neurons here; they light up as the circuit plays.') + '</span></div></div>';
+  $('notePanels').innerHTML = '';
+  renderStatus(t('Choose your opponent') + ' <span style="color:var(--dim)">' + t('— pick a fly brain to start') + '</span>');
+  drawCourt();
+}
+function updateWhat() {
+  const d = ST.info, b = cur(), name = d.region ? t(d.region.name).toLowerCase() : t('mushroom-body');
+  $('whatNote').innerHTML = '<p>' + t('The fly\'s paddle is moved by a spiking network wired from the <b>real MaleCNS {name} connectome</b> — ' +
+    '{H} measured neurons, {E} neuron-to-neuron connections, excitatory/inhibitory signs from neurotransmitter annotations. ' +
+    'It sees six numbers each frame (the ball\'s position and velocity and both paddles) and answers stay, up or down. ' +
+    'The network takes <b>one timestep per frame</b>, 60 frames per second, and its state is never reset during a game. ' +
+    'It learned by copying the actions of a scripted Pong player. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.',
+    { name: esc(name), H: d.H.toLocaleString('en-US'), E: Number(d.edges).toLocaleString('en-US') }) + '</p>' +
+    (b && b.blurb ? '<p>' + esc(b.blurb) + '</p>' : '');
+}
+
+async function chooseBrain(id) {
+  const b = BRAINS.find(x => x.key === id);
+  if (!b || !configured(b) || SWITCHING || id === CUR) return;
+  const prev = cur();
+  SWITCHING = true; pause(); showPicker(false); CUR = id; renderBrains(); setBusy(true);
+  try {
+    await loadModel(specFor(b));
+  } catch (e) {
+    $('loader').style.display = 'none'; CUR = prev ? prev.key : null; renderBrains(); SWITCHING = false; setBusy(false);
+    if (prev) { try { await loadModel(specFor(prev)); } catch (_) {} }
+    else { $('pickErr').textContent = t('Could not load {name}: {msg}', { name: b.name, msg: e.message }); showPicker(true); }
+    return;
+  }
+  SWITCHING = false; setBusy(false);
+  afterLoad();
+  refreshStore();
+  await newGame();
+}
+
+function afterLoad() {
+  updateWhat();
+  RO = ST.readout ? { ...ST.readout } : null;
+  if (RO) {
+    const n = RO.out_idx.length, A = RO.n_act, w = new Float32Array(n), steer = new Float32Array(n);
+    let wm = 1e-9, sm = 1e-9;
+    for (let i = 0; i < n; i++) {
+      let s = 0; for (let a = 0; a < A; a++) s += RO.dec_w[a * n + i] ** 2;
+      w[i] = Math.sqrt(s); wm = Math.max(wm, w[i]);
+      steer[i] = RO.dec_w[1 * n + i] - RO.dec_w[2 * n + i]; sm = Math.max(sm, Math.abs(steer[i]));
+    }
+    for (let i = 0; i < n; i++) { w[i] /= wm; steer[i] /= sm; }
+    RO.w = w; RO.steer = steer;
+    ST.highlight = { idx: RO.out_idx, w };
+    $('rogrid').innerHTML = RO.out_idx.map((_, i) => {
+      const s = RO.steer[i], a = (0.15 + 0.85 * Math.abs(s)).toFixed(2);
+      return '<i style="background:' + (s >= 0 ? 'rgba(90,209,255,' + a + ')' : 'rgba(255,122,182,' + a + ')') + '"></i>';
+    }).join('');
+  } else { ST.highlight = null; $('rogrid').innerHTML = ''; }
+  renderActs();
+}
+
+function renderActs() {
+  const L = ACT_LABEL();
+  $('acts').innerHTML = [0, 1, 2].map(a => '<div class="act' + (a === G.act ? ' on' : '') + '"><span>' + esc(L[a]) + '</span>' +
+    '<div class="bar"><i style="width:' + (100 * G.probs[a]).toFixed(1) + '%"></i></div><span class="pv">' + (100 * G.probs[a]).toFixed(1) + '%</span></div>').join('');
+}
+function updateActs() {
+  const rows = $('acts').children; if (rows.length !== 3) return renderActs();
+  for (let a = 0; a < 3; a++) {
+    rows[a].classList.toggle('on', a === G.act);
+    rows[a].children[1].firstChild.style.width = (100 * G.probs[a]).toFixed(1) + '%';
+    rows[a].children[2].textContent = (100 * G.probs[a]).toFixed(1) + '%';
+  }
+}
+function updateGrid(bitsB64) {
+  if (!RO) return;
+  const bits = unpack(bitsB64, ST.info.H), cells = $('rogrid').children;
+  for (let i = 0; i < cells.length; i++) cells[i].classList.toggle('on', !!bits[RO.out_idx[i]]);
+}
+
+function renderStatus(html) {
+  if (html != null) { $('status').innerHTML = html; return; }
+  const g = G.game; if (!g) return;
+  let s;
+  if (G.over) s = g.scoreL > g.scoreR ? t('The fly wins {a}–{b}.', { a: g.scoreL, b: g.scoreR }) : t('You win {a}–{b}.', { a: g.scoreR, b: g.scoreL });
+  else if (!G.running) s = g.frame ? t('Paused. Press Start or Space to continue.') : t('Press Start or Space to serve.');
+  else if (G.lastEv === 'pointL') s = t('The fly scores.');
+  else if (G.lastEv === 'pointR') s = t('You score.');
+  else s = t('Rally hits: {n}', { n: G.hits });
+  $('status').innerHTML = '<span class="big">' + s + '</span>';
+}
+function renderScore() { $('scL').textContent = G.game ? G.game.scoreL : 0; $('scR').textContent = G.game ? G.game.scoreR : 0; }
+
+const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const SPRITE = [null, 0.4].map(w => { const im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(flySpriteSvg(w)); return im; });
+const HEAD = { ang: 0, flap: 0 };
+const TARGET = [0, -Math.PI / 2, Math.PI / 2];
+function courtGeom(W) { const g = Math.round(Math.min(44, Math.max(30, 0.07 * W))); return { g, S: W - 2 * g }; }
+function drawFly(x, cx, cy, size) {
+  const im = REDUCED || G.act === 0 || !G.running ? SPRITE[0] : SPRITE[(HEAD.flap >> 1) & 1];
+  if (!im.complete || !im.naturalWidth) return;
+  const w = size, h = size * 44 / 60;
+  x.save(); x.translate(cx, cy); x.rotate(HEAD.ang);
+  x.shadowColor = 'rgba(205,232,255,0.7)'; x.shadowBlur = 7;
+  x.drawImage(im, -w * 0.55, -h / 2, w, h);
+  x.restore();
+}
+function drawCourt() {
+  const c = $('court'), wrap = $('boardwrap');
+  const W = Math.max(200, wrap.clientWidth || 360), { g, S } = courtGeom(W), H = S;
+  if (wrap.style.height !== H + 'px') wrap.style.height = H + 'px';
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+  const x = c.getContext && c.getContext('2d'); if (!x) return;
+  x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  x.fillStyle = '#03050a'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#05080e'; x.fillRect(g, 0, S, H);
+  x.strokeStyle = '#141d2c'; x.lineWidth = 1; x.beginPath(); x.moveTo(g + 0.5, 0); x.lineTo(g + 0.5, H); x.moveTo(g + S - 0.5, 0); x.lineTo(g + S - 0.5, H); x.stroke();
+  x.strokeStyle = '#1d2a3f'; x.lineWidth = 2; x.setLineDash([6, 8]);
+  x.beginPath(); x.moveTo(W / 2, 0); x.lineTo(W / 2, H); x.stroke(); x.setLineDash([]);
+  x.fillStyle = '#2b3a55'; x.fillRect(g, 0, S, 2); x.fillRect(g, H - 2, S, 2);
+  x.font = '600 11px ui-monospace,monospace'; x.fillStyle = '#5d6b85';
+  x.textAlign = 'left'; x.fillText(t('FLY'), g + 8, 16); x.textAlign = 'right'; x.fillText(t('YOU'), g + S - 8, 16);
+  const gm = G.game; if (!gm) return;
+  const fx = v => g + v * S, sy = v => (1 - v) * H, pw = Math.max(5, 0.014 * S), ph = PH * S;
+  const room = fx(PX) - pw / 2, size = Math.min(0.09 * S, 1.15 * room);
+  drawFly(x, room / 2, sy(gm.yL), size);
+  x.fillStyle = '#ffc447'; x.fillRect(fx(PX) - pw / 2, sy(gm.yL) - ph / 2, pw, ph);
+  x.fillStyle = '#5ad1ff'; x.fillRect(fx(1 - PX) - pw / 2, sy(gm.yR) - ph / 2, pw, ph);
+  const br = Math.max(3.5, R * S);
+  x.fillStyle = gm.serveTimer > 0 ? 'rgba(244,247,255,0.45)' : '#f4f7ff';
+  x.beginPath(); x.arc(fx(gm.x), sy(gm.y), br, 0, 6.283); x.fill();
+  if (G.drag != null) { x.strokeStyle = 'rgba(90,209,255,0.35)'; x.lineWidth = 1; x.beginPath(); x.moveTo(fx(0.9), sy(G.drag)); x.lineTo(W, sy(G.drag)); x.stroke(); }
+}
+
+function humanAction() {
+  if (G.up !== G.down) return G.up ? 1 : 2;
+  if (G.drag == null || !G.game) return 0;
+  const d = G.drag - G.game.yR, dz = CONST.PADDLE_SPEED / 2;
+  return d > dz ? 1 : d < -dz ? 2 : 0;
+}
+const argmax = a => { let b = 0; for (let i = 1; i < a.length; i++) if (a[i] > a[b]) b = i; return b; };
+function softmax(a) { const m = Math.max(...a), e = a.map(v => Math.exp(v - m)), s = e.reduce((p, q) => p + q, 0); return e.map(v => v / s); }
+
+function stats(now) {
+  G.win.push(now); while (G.win.length && G.win[0] < now - 1000) G.win.shift();
+  if (G.ms.length > 120) G.ms.shift();
+}
+function renderRt() {
+  const fps = G.win.length > 1 ? (G.win.length - 1) * 1000 / (G.win[G.win.length - 1] - G.win[0]) : 0;
+  const ms = G.ms.length ? G.ms.reduce((a, b) => a + b, 0) / G.ms.length : 0;
+  const el = $('rt');
+  el.dataset.fps = fps.toFixed(1); el.dataset.ms = ms.toFixed(3); el.dataset.draw = G.draw.toFixed(1); el.dataset.paint = G.paints.length; el.dataset.brain = G.bdraws.length;
+  if (!G.running || G.win.length < 30) { el.innerHTML = ms ? t('fly: {ms} ms per timestep', { ms: ms.toFixed(2) }) : ''; return; }
+  const slow = fps < CONST.FPS - 3;
+  el.innerHTML = t('fly: {ms} ms per timestep · {fps} frames per second', { ms: ms.toFixed(2), fps: fps.toFixed(1) }) +
+    (slow ? ' · <span class="warn">' + t('slower than real time on this device: every frame is still simulated, none is skipped') + '</span>' : '');
+}
+
+function tick() {
+  G.timer = 0;
+  if (!G.running || G.over || G.pending || !ST.ready || SWITCHING) return;
+  const now = performance.now();
+  if (now < G.nextT - 1) { G.timer = setTimeout(tick, G.nextT - now); return; }
+  G.nextT = Math.max(G.nextT + STEP_MS, now);
+  G.pending = true;
+  const gen = GEN, obs = flyObs(G.game, 'L');
+  rpc('frame', { obs }).then(r => {
+    if (gen !== GEN) return;
+    G.pending = false;
+    G.act = argmax(r.logits); G.probs = softmax(r.logits);
+    const ev = G.game.step(G.act, humanAction());
+    for (const e of ev) {
+      if (e === 'hitL' || e === 'hitR') G.hits++;
+      if (e === 'pointL' || e === 'pointR') { G.lastEv = e; G.hits = 0; renderScore(); }
+      if (e === 'serve') G.lastEv = '';
+    }
+    if (G.game.over()) { G.over = true; G.running = false; gameOver(); }
+    G.ms.push(r.ms); stats(performance.now());
+    recordFrame(r);
+    G.lastR = r; G.dirty = true;
+    if (r.t % 15 === 0 || ev.length) { renderStatus(); renderRt(); }
+    tick();
+  }, e => { G.pending = false; G.running = false; renderStatus(esc(t('fly error: {msg}', { msg: e.message }))); });
+}
+function paint(now) {
+  requestAnimationFrame(paint);
+  G.paints.push(now); while (G.paints.length && G.paints[0] < now - 1000) G.paints.shift();
+  const tgt = TARGET[G.act] || 0, d = tgt - HEAD.ang;
+  const turning = Math.abs(d) > 0.01;
+  if (turning) HEAD.ang += d * 0.22; else HEAD.ang = tgt;
+  HEAD.flap++;
+  $('court').dataset.heading = Math.round(HEAD.ang * 180 / Math.PI);
+  if (G.dirty || turning || (G.running && G.act && !REDUCED)) { G.dirty = false; drawCourt(); }
+  const r = G.lastR;
+  if (r && r !== G.shown) {
+    G.shown = r;
+    const t0 = performance.now();
+    drawBrain(r); updateActs(); updateGrid(r.brain.bits);
+    G.draw = performance.now() - t0;
+    G.bdraws.push(now); while (G.bdraws.length && G.bdraws[0] < now - 1000) G.bdraws.shift();
+    if (r.t - G.chartT >= 30 || r.t < G.chartT) { G.chartT = r.t; refreshCharts(); }
+  }
+}
+
+function play() {
+  if (!G.game || G.over || !ST.ready || SWITCHING) return;
+  if (G.running) return;
+  G.running = true; G.nextT = performance.now(); G.win = [];
+  $('play').textContent = t('Pause'); renderStatus(); tick();
+}
+function pause() {
+  G.running = false; clearTimeout(G.timer); G.timer = 0; if ($('play')) $('play').textContent = t('Start');
+  renderStatus(); renderRt();
+}
+function gameOver() {
+  $('play').textContent = t('Start'); $('play').disabled = true;
+  const g = G.game;
+  $('overbox').innerHTML = '<div class="over">' + (g.scoreL > g.scoreR
+    ? t('<b>The fly wins {a}–{b}.</b> Press New game for a rematch.', { a: g.scoreL, b: g.scoreR })
+    : t('<b>You win {a}–{b}.</b> Press New game to play again.', { a: g.scoreR, b: g.scoreL })) + '</div>';
+  renderStatus(); renderRt(); refreshCharts();
+}
+async function newGame() {
+  GEN++; clearTimeout(G.timer); G.timer = 0; G.running = false; G.pending = false; G.lastR = null; G.shown = null; G.chartT = 0; G.over = false; G.hits = 0; G.lastEv = ''; G.act = 0; G.probs = [1, 0, 0]; G.win = []; G.ms = [];
+  $('overbox').innerHTML = ''; $('play').disabled = false; $('play').textContent = t('Start');
+  const seed = (crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(1))[0] : Math.floor(Math.random() * 2 ** 32)) >>> 0;
+  G.game = new Pong(seed);
+  await newSession();
+  renderScore(); renderActs(); renderStatus(); renderRt(); drawCourt();
+}
+
+const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down' };
+window.addEventListener('keydown', e => {
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (KEYS[e.code]) { G[KEYS[e.code]] = true; if (G.game && !G.over) { e.preventDefault(); if (!G.running) play(); } }
+  else if (e.code === 'Space' && G.game && (!e.target || e.target.tagName !== 'BUTTON')) { e.preventDefault(); G.running ? pause() : play(); }
+});
+window.addEventListener('keyup', e => { if (KEYS[e.code]) G[KEYS[e.code]] = false; });
+window.addEventListener('blur', () => { G.up = G.down = false; });
+const court = $('court');
+SPRITE[0].onload = () => drawCourt();
+const dragY = e => { const r = court.getBoundingClientRect(); return Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height)); };
+court.addEventListener('pointerdown', e => { if (!G.game) return; court.setPointerCapture(e.pointerId); G.drag = dragY(e); if (!G.running && !G.over) play(); e.preventDefault(); });
+court.addEventListener('pointermove', e => { if (G.drag != null) G.drag = dragY(e); });
+const endDrag = () => { G.drag = null; };
+court.addEventListener('pointerup', endDrag); court.addEventListener('pointercancel', endDrag);
+$('play').onclick = () => (G.running ? pause() : play());
+$('newG').onclick = () => { if (ST.model && !SWITCHING) newGame(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden && G.running) pause(); });
+
+try {
+  const rs = await fetch(new URL(dataFile('data/pong_brains.json'), SITE));
+  if (rs.ok) BRAINS = (await rs.json()).brains;
+} catch (_) {}
+const qb = QS.get('brain'), want = BRAINS.find(b => configured(b) && (b.key === qb || b.id === qb));
+if (want) CUR = want.key;
+renderBrains();
+renderPicker();
+renderActs();
+$('clearStore').onclick = clearStoreClick; $('clearStore2').onclick = clearStoreClick;
+refreshStore();
+requestAnimationFrame(paint);
+start({
+  kind: 'pong',
+  unit: 'frame',
+  fitExtra: 200,
+  initialModel: () => (CUR ? specFor(cur()) : null),
+  modelNote: () => '',
+  render: drawCourt,
+  sync: () => {},
+  renderStatus: () => renderStatus(),
+  sqCenter: () => [0, 0],
+  vocabText: v => t('{n} actions (stay, up, down)', { n: v }),
+  onGameOver() {},
+  onFinal() { return null; },
+  caveat(st, region) {
+    const b = cur() || {};
+    const s = b.strength ? esc(b.strength) : t('Its strength has not been measured yet.');
+    return {
+      html: t('<b>Honest caveat.</b> This fly learned by copying a scripted Pong player: it gets no reward, plans nothing ahead and has no ' +
+        'model of the game beyond what its trained wiring computes from the six numbers it sees.') + ' ' + s + ' ' +
+        t('Each paddle command is one timestep of the network. The interesting claim is <i>which substrate is computing</i>.'),
+      row: b.strength ? esc(b.strength) : t('not measured yet'),
+    };
+  },
+}).then(() => {
+  if (ST.model) { afterLoad(); setBusy(false); return newGame(); }
+  waitingState(); showPicker(true);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+ "brains": {
+  "cx": "In 20 games to 11 against each scripted player: won 18 against a noisy scripted player like the one it learned from, won all 20 against a weaker one, and lost all 20 to a perfect one, while still returning 95.7% of its shots.",
+  "mb": null
+ }
+}

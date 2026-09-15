@@ -1,0 +1,52 @@
+{
+ "brains": [
+  {
+   "id": "cx",
+   "key": "cx",
+   "name": "Central Complex",
+   "blurb": "The central complex is the fly's navigation and steering centre: it keeps track of heading and turns it into steering commands.",
+   "readout": "PFL output neurons",
+   "thumb": "data/thumb_pong_cx.svg",
+   "model": "CentralComplex_Pong",
+   "version": "v1",
+   "label": "CentralComplex_Pong v1",
+   "strength": "In 20 games to 11 against each scripted player: won 18 against a noisy scripted player like the one it learned from, won all 20 against a weaker one, and lost all 20 to a perfect one, while still returning 95.7% of its shots.",
+   "skel": "data/skel_cx.json",
+   "size_mb": 2.3,
+   "intro": "<p>The <b>central complex</b> is the fly's navigation and steering centre: it holds a compass-like heading signal and turns it into steering commands. Its cells are drawn on the atlas in four classes:</p>",
+   "note": "<p>In a real <i>Drosophila</i> this circuit tracks heading and steers. Here the same wiring steers a Pong paddle: six numbers (ball position and velocity, both paddle positions) drive the ring (ER, ExR) and PFN input neurons, the circuit takes <b>one timestep per frame</b> at 60 frames per second, and the paddle command (stay, up or down) is read from the voltage of the 50 PFL output neurons only. There is no dopamine gate. The state is carried through the whole game and never reset.</p>",
+   "rate_note": "The input classes are driven by the game every frame; the paddle command is read from the PFL output neurons only.",
+   "cells": [
+    {
+     "cls": "ER/ExR",
+     "title": "Ring neurons (ER, ExR)",
+     "desc": "Carry landmark and visual cues into the ellipsoid body. Here they receive the game input."
+    },
+    {
+     "cls": "PFN",
+     "title": "PFN columnar neurons",
+     "desc": "Bring self-motion signals through the noduli into the fan-shaped body. Also driven by the game input."
+    },
+    {
+     "cls": "PFL",
+     "title": "PFL output neurons",
+     "desc": "Steering outputs towards the lateral accessory lobe. The paddle readout sees only their membrane voltage."
+    },
+    {
+     "cls": "other",
+     "title": "Other central-complex neurons",
+     "desc": "EPG heading cells, PEN, PEG, Delta and fan-shaped-body neurons: the circuit between input and output."
+    }
+   ]
+  },
+  {
+   "id": "mb",
+   "key": "mb",
+   "name": "Mushroom Body",
+   "blurb": "The mushroom body is the fly's centre for associative learning and memory.",
+   "readout": "MBONs",
+   "thumb": "data/thumb_mb.svg",
+   "status": "training"
+  }
+ ]
+}

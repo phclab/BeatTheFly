@@ -5,4 +5,7 @@ window.FLY_CONFIG = {
     cx: { WEIGHTS_BASE: 'https://huggingface.co/phclab/CentralComplex_Chess/resolve/main/', PRECISION: 'fp16w32' },
   } },
   othello: { WEIGHTS_BASE: 'https://huggingface.co/phclab/MushroomBody_Othello/resolve/main/', PRECISION: 'fp16w32' },
+  pong: { BRAINS: {
+    cx: { WEIGHTS_BASE: 'https://huggingface.co/phclab/CentralComplex_Pong/resolve/main/', PRECISION: 'fp16w32' },
+  } },
 };

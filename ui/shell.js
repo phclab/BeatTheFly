@@ -17,6 +17,7 @@ export const ST = {
   proj: 'frontal', memory: false, fw: true, bits: [], hist: [], scrubT: null, gen: 0, anim: null, lastVf: null, model: null,
 };
 let PAGE = null, NOTE = '', REGION = null;
+const perFrame = () => !!(PAGE && PAGE.unit === 'frame');
 
 const isMB = () => !ST.info || !ST.info.region;
 const colorOf = n => (ST.info && ST.info.class_colors && ST.info.class_colors[n]) || CLR[n] || CLR.other;
@@ -124,15 +125,17 @@ function panelsSide() {
   <div class="grid4" style="margin-top:12px">
     <div class="metric"><div class="k">${t('neurons firing now')}</div><div class="v" id="mRate">—</div>
       <div class="s" id="mRateS">${t('of {H}', { H: ST.info ? ST.info.H : 4510 })}</div></div>
-    <div class="metric"><div class="k">${t('carried from previous move')}</div><div class="v" id="mOvP">—</div>
+    <div class="metric"><div class="k">${perFrame() ? t('carried from previous frame') : t('carried from previous move')}</div><div class="v" id="mOvP">—</div>
       <div class="s">${t('spike overlap')}</div></div>
-    <div class="metric"><div class="k">${t('still shared with move 1')}</div><div class="v" id="mOv1">—</div>
+    <div class="metric"><div class="k">${perFrame() ? t('still shared with frame 1') : t('still shared with move 1')}</div><div class="v" id="mOv1">—</div>
       <div class="s">${t('unbroken state trajectory')}</div></div>
     <div class="metric"><div class="k">${t('cost per timestep')}</div><div class="v" id="mMs">—</div>
       <div class="s" id="mMsS">${t('constant — O(H) state')}</div></div>
   </div>
   <canvas class="chart" id="latc" style="margin-top:12px"></canvas>
-  <div class="legend"><span>${t('The lower trace is wall-clock cost per timestep in your browser. It stays <b>flat</b> as the game grows ' +
+  <div class="legend"><span>${perFrame() ? t('The lower trace is wall-clock cost per timestep in your browser, one timestep per frame. It stays <b>flat</b> ' +
+    'because the circuit carries its state instead of re-reading the game: frame 3,000 costs exactly what frame 1 cost. The charts show the last 900 frames.')
+    : t('The lower trace is wall-clock cost per timestep in your browser. It stays <b>flat</b> as the game grows ' +
     'because the circuit carries its state instead of re-reading the game — the readout at move 40 costs exactly what move 1 cost.')}</span></div>
 </div>
 ${mb ? `<div class="grid2">\n  ${danCard()}\n  ${hemiCard}\n</div>` : hemiCard}
@@ -391,6 +394,23 @@ export function drawAtlas(bits, vf) {
         x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 2.1, 0, 6.283); x.fill(); }
     }
   }
+  const HL = ST.highlight;
+  if (HL && SKEL) {
+    x.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < HL.idx.length; k++) {
+      const i = HL.idx[k], on = bits && bits[i];
+      x.strokeStyle = 'rgba(255,196,71,' + (on ? 0.95 : 0.10 + 0.35 * HL.w[k]).toFixed(3) + ')';
+      x.lineWidth = (on ? 1.4 : 0.9) / ATLAS.dpr;
+      strokeNeuron(x, i);
+    }
+    x.globalCompositeOperation = 'source-over';
+  } else if (HL && SOMA) {
+    for (let k = 0; k < HL.idx.length; k++) {
+      const i = HL.idx[k], on = bits && bits[i];
+      x.strokeStyle = 'rgba(255,196,71,' + (on ? 1 : 0.25 + 0.5 * HL.w[k]).toFixed(3) + ')';
+      x.lineWidth = 1.2; x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 2.2, 0, 6.283); x.stroke();
+    }
+  }
   if (bits) {
     if (SKEL) {
       x.globalCompositeOperation = 'lighter';
@@ -473,7 +493,7 @@ function onStep(ev) {
   const e = ev.entry;
   $('mOvP').textContent = e.overlap_prev == null ? '—' : (100 * e.overlap_prev).toFixed(0) + '%';
   $('mOv1').textContent = e.overlap_first == null ? '—' : (100 * e.overlap_first).toFixed(0) + '%';
-  $('mMs').textContent = t('{n} ms', { n: ev.ms.toFixed(0) });
+  $('mMs').textContent = t('{n} ms', { n: ev.ms.toFixed(perFrame() ? 2 : 0) });
   if ($('bulb')) {
     $('bulb').classList.toggle('on', !!b.dan_gate_open);
     $('mech').classList.toggle('fire', !!b.dan_gate_open);
@@ -484,6 +504,16 @@ function onStep(ev) {
   if (b.hemi) hemiBar('hbAL', 'hbAR', { L: b.hemi.L, R: b.hemi.R });
   renderClasses(g);
 }
+const FRAME_WINDOW = 900;
+export function recordFrame(ev) {
+  ST.bits[ev.t] = ev.brain.bits;
+  if (ev.t >= FRAME_WINDOW) delete ST.bits[ev.t - FRAME_WINDOW];
+  ST.hist.push(ev.entry);
+  if (ST.hist.length > FRAME_WINDOW) ST.hist.shift();
+}
+export const drawBrain = ev => onStep(ev);
+export const refreshCharts = () => drawGameCharts();
+
 export function renderCands(cands) {
   const box = $('cands'); box.innerHTML = '';
   (cands || []).forEach((c, i) => {
@@ -500,16 +530,17 @@ function drawGameCharts() {
   const n = h.length;
   lineChart('gamec', [
     { name: cname('all'), color: '#9fb0cb', v: h.map(e => e.rate) },
-    { name: t('carried from move 1'), color: '#ffc447', v: h.map(e => e.overlap_first == null ? 0 : e.overlap_first) },
-  ], 1.0, n, 132, t('timestep (one per move) →'));
+    { name: perFrame() ? t('carried from frame 1') : t('carried from move 1'), color: '#ffc447', v: h.map(e => e.overlap_first == null ? 0 : e.overlap_first) },
+  ], 1.0, n, 132, perFrame() ? t('timestep (one per frame) →') : t('timestep (one per move) →'));
   lineChart('latc', [
     { name: t('ms / timestep'), color: '#5ad1ff', v: h.map(e => e.ms) },
-  ], Math.max(60, Math.ceil(Math.max(...h.map(e => e.ms)) * 1.3)), n, 96, t('timestep →'));
+  ], Math.max(perFrame() ? 4 : 60, Math.ceil(Math.max(...h.map(e => e.ms)) * 1.3)), n, 96, t('timestep →'));
   lineChart('ratec', panelClasses().map(k => ({
     name: cname(k), color: rgb(k), v: h.map(e => (e.per_class && e.per_class[k]) || 0),
   })), 1.0, n, 132, t('timestep →'));
   const ms = h.map(e => e.ms);
-  $('mMsS').textContent = t('first {a} · last {b} ms', { a: ms[0].toFixed(0), b: ms[ms.length - 1].toFixed(0) });
+  const dg = perFrame() ? 2 : 0;
+  $('mMsS').textContent = t('first {a} · last {b} ms', { a: ms[0].toFixed(dg), b: ms[ms.length - 1].toFixed(dg) });
 }
 
 function showT(k) {
@@ -522,11 +553,7 @@ function showT(k) {
 
 export const FLY = { el: null, bubble: null, carry: null, busy: false, skip: false, x: 0, y: 0, k: 1, csz: 0 };
 
-function flyInit() {
-  const stage = $('boardstage');
-  const d = document.createElement('div');
-  d.id = 'flyguy'; d.innerHTML = `
-<svg viewBox="0 0 60 44" width="52" height="38">
+export const FLY_BODY = `
   <g class="wing wl"><ellipse cx="26" cy="12" rx="13" ry="6.5" transform="rotate(-22 26 12)"/></g>
   <g class="wing wr"><ellipse cx="26" cy="20" rx="13" ry="6.5" transform="rotate(22 26 20)"/></g>
   <path class="leg" d="M28 30 q-3 6 -8 8"/><path class="leg" d="M33 31 q-1 7 -4 9"/>
@@ -537,7 +564,18 @@ function flyInit() {
   <ellipse class="eye"  cx="45.5" cy="26" rx="4.4" ry="4.6"/>
   <circle class="glint" cx="47.4" cy="17.6" r="1.5"/>
   <path class="ant" d="M46 14 q4 -6 8 -6"/><path class="ant" d="M47 30 q4 6 8 6"/>
-</svg>`;
+`;
+const FLY_STYLE = '.abdo{fill:#3b4657}.thor{fill:#2a3340}.eye{fill:#e2452f}.glint{fill:#fff;opacity:.85}' +
+  '.ant,.leg{stroke:#222a36;stroke-width:2;fill:none;stroke-linecap:round}.wing ellipse{fill:rgba(205,232,255,.5);stroke:rgba(255,255,255,.5);stroke-width:.7}';
+export function flySpriteSvg(wing) {
+  const w = wing == null ? '' : '.wing{transform-origin:34px 18px;transform:scaleY(' + wing + ')}';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 44" width="180" height="132"><style>' + FLY_STYLE + w + '</style>' + FLY_BODY + '</svg>';
+}
+
+function flyInit() {
+  const stage = $('boardstage');
+  const d = document.createElement('div');
+  d.id = 'flyguy'; d.innerHTML = '<svg viewBox="0 0 60 44" width="52" height="38">' + FLY_BODY + '</svg>';
   stage.appendChild(d);
   FLY.el = d;
   const b = document.createElement('div');
@@ -649,13 +687,16 @@ export function fitBoard() {
   const wrap = document.querySelector('.wrap'), cs = getComputedStyle(wrap);
   const inner = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const hdr = document.querySelector('header').offsetHeight;
-  const byH = innerHeight - hdr - 95;
+  const byH = innerHeight - hdr - ((PAGE && PAGE.fitExtra) || 95);
   const byW = Math.min(0.62 * innerWidth, inner - 16 - 340 - 30);
   const size = Math.round(Math.max(360, Math.min(byH, byW, 960)));
   root.style.setProperty('--bcol', (size + 30) + 'px');
 }
 
 function valText(v) {
+  const f = /^([\d,]+) of ([\d,]+) spike bits differ from the reference on the same weights \(([\d,]+) held-out frames and a ([\d,]+)-frame closed-loop game\)$/.exec(v);
+  if (f) return t('{x} of {y} spike bits differ from the reference on the same weights ({a} held-out frames and a {b}-frame closed-loop game)',
+    { x: f[1], y: f[2], a: f[3], b: f[4] });
   const m = /^legal top-1 (\d+)\/(\d+) vs the fp32 reference \((\d+) (.+?)\); ([\d,]+) of ([\d,]+) spike bits differ from the reference on the same weights$/.exec(v);
   return m ? t('legal top-1 {a}/{b} vs the fp32 reference ({n} {games}); {x} of {y} spike bits differ from the reference on the same weights',
     { a: m[1], b: m[2], n: m[3], games: t(m[4]), x: m[5], y: m[6] }) : v;
@@ -701,9 +742,9 @@ function wirePanels() {
 
 function wirePage() {
   [['tg0', 0], ['tg1', 0.5], ['tg2', 1.0]].forEach(([id, temp]) => {
-    $(id).onclick = () => { ST.temp = temp; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
+    if ($(id)) $(id).onclick = () => { ST.temp = temp; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
   });
-  $('skipfly').onclick = () => { FLY.skip = true; };
+  if ($('skipfly')) $('skipfly').onclick = () => { FLY.skip = true; };
   let RT = null;
   window.addEventListener('resize', () => {
     fitBoard(); PAGE.render();
@@ -772,12 +813,12 @@ export async function loadModel(spec) {
   }
   const d = r.info;
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (_) {}
-  ST.info = d; ST.model = spec; REGION = spec.region; ST.cache = r.cache;
+  ST.info = d; ST.model = spec; REGION = spec.region; ST.cache = r.cache; ST.readout = r.readout || null;
   ST.fw = r.manifest.fast_weight !== false;
   if (!ST.fw) ST.memory = false;
   if (spec.note) NOTE = spec.note;
   SKEL = null; PROJ = null; PSTART = null; ATLAS = null; SOMA = null;
-  ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
+  ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null; ST.highlight = null;
   renderPanels();
   $('loader').style.display = 'none';
   const g = d.groups || {}, man = r.manifest, audit = man.connectome_audit || {}, val = man.validation || {}, sc = r.selfcheck;
@@ -792,13 +833,14 @@ export async function loadModel(spec) {
     [t('hemispheres'), t('{L} L / {R} R', { L: d.nL, R: d.nR })],
     [t('cross-midline edges'), d.cross ? Number(d.cross.cross).toLocaleString('en-US') + ' (' + (100 * d.cross.frac).toFixed(1) + '%)' : '—'],
     [t('soma coordinates'), d.atlas ? t('{a} measured, {b} imputed', { a: d.atlas.n_real, b: d.atlas.n_filled }) : t('unavailable')],
-    [t('run mode'), t('RSNN (one timestep per move, state carried, no reset) · in this browser tab')],
+    [t('run mode'), perFrame() ? t('RSNN (one timestep per frame at 60 frames per second, state carried through the game) · in this browser tab')
+      : t('RSNN (one timestep per move, state carried, no reset) · in this browser tab')],
   ];
   if (d.region) rows.push([t('input → readout'), t('{nin} {input} → {nout} {output} (no dopamine gate)',
     { nin: d.region.n_in, input: esc(t(d.region.input)), nout: d.region.n_out, output: esc(t(d.region.output)) })]);
   rows.push(
     [t('synaptic weights'), t('trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode')],
-    [t('move vocabulary'), PAGE.vocabText(d.vocab)],
+    [perFrame() ? t('actions') : t('move vocabulary'), PAGE.vocabText(d.vocab)],
     [t('trained parameters'), t('{x} M', { x: (d.params / 1e6).toFixed(2) })],
     [t('model'), esc(man.label) + (PAGE.modelNote && PAGE.modelNote() ? ' — ' + esc(PAGE.modelNote()) : '')],
     [t('weights in this page'), cache.from_network_bytes === 0 ? t('{variant} · {mb} MB loaded from this browser\'s storage', { variant: esc(r.variant), mb: MBs })
@@ -809,8 +851,9 @@ export async function loadModel(spec) {
       m: Number(audit.off_connectome || 0).toLocaleString('en-US') })],
     [t('Dale check'), t('{n} wrong-sign weights', { n: Number(audit.wrong_sign || 0).toLocaleString('en-US') })],
     [t('engine vs reference'), val[r.variant] ? esc(valText(val[r.variant])) : '—'],
-    [t('load-time self-check'), sc ? ok(sc.legal_top1_agree === sc.plies) + ' ' + t('— legal top-1 {a}/{b} plies, max |Δlogit| {e}',
-      { a: sc.legal_top1_agree, b: sc.plies, e: sc.max_abs_logit_diff.toExponential(1) }) : '—'],
+    [t('load-time self-check'), sc ? ok(sc.legal_top1_agree === sc.plies) + ' ' + (perFrame()
+      ? t('— top-1 {a}/{b} frames, max |Δlogit| {e}', { a: sc.legal_top1_agree, b: sc.plies, e: sc.max_abs_logit_diff.toExponential(1) })
+      : t('— legal top-1 {a}/{b} plies, max |Δlogit| {e}', { a: sc.legal_top1_agree, b: sc.plies, e: sc.max_abs_logit_diff.toExponential(1) })) : '—'],
     [t('engine load'), t('{s} s', { s: ((performance.now() - t0) / 1000).toFixed(1) })],
   );
   $('facts').innerHTML = rows.map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
@@ -821,7 +864,7 @@ export async function loadModel(spec) {
   $('caveat').innerHTML = cv.html;
   if (cv.row) {
     const tb = $('facts'), tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + t('strength') + '</td><td>' + cv.row + '</td>';
+    tr.innerHTML = '<td>' + (perFrame() ? t('record') : t('strength')) + '</td><td>' + cv.row + '</td>';
     const modelRow = [...tb.children].find(x => x.firstChild && x.firstChild.textContent === t('model'));
     tb.insertBefore(tr, modelRow || null);
   }
@@ -859,7 +902,7 @@ export async function newSession() {
   ST.gen++; FLY.skip = true;
   ST.busy = false;
   ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
-  $('cands').innerHTML = ''; $('flyline').textContent = '';
+  if ($('cands')) $('cands').innerHTML = ''; if ($('flyline')) $('flyline').textContent = '';
   $('scrub').max = 0; $('scrub').value = 0; $('scrublb').textContent = t('live');
   ['mRate', 'mOvP', 'mOv1', 'mMs', 'danN'].forEach(i => { if ($(i)) $(i).textContent = '—'; });
   document.querySelectorAll('.hemi .hb i').forEach(el => { el.style.width = '0'; });

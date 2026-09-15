@@ -65,6 +65,7 @@ export class FlyRSNN {
     this.S = S;
     this.H = S.H;
     this.fw = (S.mode || 'dan') === 'dan';
+    this.dense = S.input === 'dense';
     Object.assign(this, {
       encTok: T.enc_tok_T, encTokB: T.enc_tok_b, lnTokW: T.ln_tok_w, lnTokB: T.ln_tok_b,
       encBrd: T.enc_brd_T, encBrdB: T.enc_brd_b, lnBrdW: T.ln_brd_w, lnBrdB: T.ln_brd_b,
@@ -73,6 +74,7 @@ export class FlyRSNN {
       inp: T.in_idx || T.kc_idx, outIdx: T.out_idx || null,
       cp: T.W_colptr, ri: T.W_rowidx, wv: T.W_vals,
     });
+    if (this.dense) Object.assign(this, { encObs: T.enc_obs_T, encObsB: T.enc_obs_b, lnObsW: T.ln_obs_w, lnObsB: T.ln_obs_b, dObs: S.d_obs });
     if (this.fw) {
       this.nkc = S.n_kc; this.nmb = S.n_mbon; this.ndan = S.n_dan;
       Object.assign(this, { v2d: T.v2d_T, v2dB: T.v2d_b, Wg: T.Wg, Wdv: T.W_dan_val,
@@ -105,19 +107,36 @@ export class FlyRSNN {
   step(tok, act, opts = {}) {
     const H = this.H, S = this.S, x = this._x;
 
-    const to = tok * H;
-    for (let i = 0; i < H; i++) x[i] = f(this.encTok[to + i] + this.encTokB[i]);
-    this._ln(x, this.lnTokW, this.lnTokB, this._tokh);
-    for (let i = 0; i < H; i++) x[i] = 0;
-    for (const a of act) { const o = a * H; for (let i = 0; i < H; i++) x[i] += this.encBrd[o + i]; }
-    for (let i = 0; i < H; i++) x[i] = f(f(x[i]) + this.encBrdB[i]);
-    this._ln(x, this.lnBrdW, this.lnBrdB, this._brdh);
-    const drive = this._drive, ut = S.use_tok, ub = S.use_board, da = S.drive_alpha;
-    for (let i = 0; i < H; i++) {
-      const emb = f(f(ut * this._tokh[i]) + f(ub * this._brdh[i]));
-      drive[i] = f(da * (this.inMask[i] ? Math.abs(emb) : 0));
+    const drive = this._drive, da = S.drive_alpha;
+    if (this.dense) {
+      const E = this.encObs, D = this.dObs;
+      for (let i = 0; i < H; i++) x[i] = 0;
+      for (let j = 0; j < D; j++) { const o = f(act[j]), off = j * H; for (let i = 0; i < H; i++) x[i] += o * E[off + i]; }
+      for (let i = 0; i < H; i++) x[i] = f(f(x[i]) + this.encObsB[i]);
+      this._ln(x, this.lnObsW, this.lnObsB, this._brdh);
+      for (let i = 0; i < H; i++) drive[i] = f(da * (this.inMask[i] ? Math.abs(this._brdh[i]) : 0));
+    } else {
+      const to = tok * H;
+      for (let i = 0; i < H; i++) x[i] = f(this.encTok[to + i] + this.encTokB[i]);
+      this._ln(x, this.lnTokW, this.lnTokB, this._tokh);
+      for (let i = 0; i < H; i++) x[i] = 0;
+      for (const a of act) { const o = a * H; for (let i = 0; i < H; i++) x[i] += this.encBrd[o + i]; }
+      for (let i = 0; i < H; i++) x[i] = f(f(x[i]) + this.encBrdB[i]);
+      this._ln(x, this.lnBrdW, this.lnBrdB, this._brdh);
+      const ut = S.use_tok, ub = S.use_board;
+      for (let i = 0; i < H; i++) {
+        const emb = f(f(ut * this._tokh[i]) + f(ub * this._brdh[i]));
+        drive[i] = f(da * (this.inMask[i] ? Math.abs(emb) : 0));
+      }
     }
-    if (this.fw) {
+    if (this.fw && this.dense) {
+      const nd = this.ndan, D = this.dObs, pre = new Float64Array(nd);
+      for (let j = 0; j < D; j++) { const o = f(act[j]), off = j * nd; for (let d = 0; d < nd; d++) pre[d] += o * this.v2d[off + d]; }
+      for (let d = 0; d < nd; d++) {
+        const i = this.dan[d];
+        drive[i] = f(drive[i] + f(S.dan_teach * Math.abs(f(f(pre[d]) + this.v2dB[d]))));
+      }
+    } else if (this.fw) {
       const vo = tok * this.ndan;
       for (let d = 0; d < this.ndan; d++) {
         const i = this.dan[d];

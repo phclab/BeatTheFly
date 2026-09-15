@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { FlyRSNN, loadWeights } from './rsnn.js';
-import { GameSession } from './session.js';
+import { GameSession, FrameSession } from './session.js';
 import { openStore, fileKey, modelPrefix, getFile, putFile, markComplete, dropModel, evictOldVersions } from './store.js';
 
-let net = null, info = null, manifest = null, game = null, session = null;
+let net = null, info = null, manifest = null, game = null, session = null, frames = null, readout = null;
 
 async function fetchJSON(url) {
   const r = await fetch(url);
@@ -26,6 +26,7 @@ async function fetchBytes(url, onBytes) {
 }
 
 async function makeGame(kind, base) {
+  if (manifest.scalars.input === 'dense') return null;
   if (kind === 'chess') {
     const [{ chessGame }, tok2id] = await Promise.all([import('./chess.js'), fetchJSON(`${base}data/chess_uci_vocab.json`)]);
     return chessGame(tok2id);
@@ -38,13 +39,17 @@ async function makeGame(kind, base) {
 }
 
 function runSelfcheck(sc) {
-  const s = game.start();
+  const s = sc.obs ? null : game.start();
   net.reset();
   let agree = 0, maxd = 0;
   for (let t = 0; t < sc.plies.length; t++) {
     const p = sc.plies[t];
-    const tok = t === 0 ? game.bos : game.play(s, sc.moves[t - 1]);
-    const { logits } = net.step(tok, game.features(s), { logits: p.ids });
+    let logits;
+    if (sc.obs) ({ logits } = net.step(0, sc.obs[t], { logits: p.ids }));
+    else {
+      const tok = t === 0 ? game.bos : game.play(s, sc.moves[t - 1]);
+      ({ logits } = net.step(tok, game.features(s), { logits: p.ids }));
+    }
     let bi = 0; for (let i = 1; i < p.ids.length; i++) if (logits[i] > logits[bi]) bi = i;
     if (p.ids[bi] === p.top1) agree++;
     for (let i = 0; i < p.ids.length; i++) maxd = Math.max(maxd, Math.abs(logits[i] - p.logits[i]));
@@ -56,7 +61,7 @@ function runSelfcheck(sc) {
 async function init({ base, wbase, variant, kind }, post) {
   const wb = wbase.endsWith('/') ? wbase : wbase + '/';
   [manifest, info] = await Promise.all([fetchJSON(wb + 'manifest.json'), fetchJSON(wb + 'info.json')]);
-  session = null; net = null;
+  session = null; net = null; frames = null; readout = null;
   game = await makeGame(kind, base);
   const ents = manifest.variants[variant];
   if (!ents) throw new Error('unknown weight variant: ' + variant);
@@ -85,6 +90,8 @@ async function init({ base, wbase, variant, kind }, post) {
     });
     post({ type: 'progress', done: totalBytes, total: totalBytes, file: 'building the network' });
     net = new FlyRSNN(manifest, T);
+    readout = manifest.scalars.input === 'dense' && T.out_idx && T.dec_w.length <= 4096
+      ? { out_idx: Array.from(T.out_idx), dec_w: Array.from(T.dec_w), n_act: manifest.scalars.vocab } : null;
     return { totalBytes, check: sc ? runSelfcheck(sc) : null };
   };
   let { totalBytes, check } = await load(false);
@@ -98,7 +105,7 @@ async function init({ base, wbase, variant, kind }, post) {
     await markComplete(db, modelPrefix(model, version, variant), { model, version, variant, label: manifest.label, bytes: totalBytes });
     await evictOldVersions(db, model, version);
   }
-  return { info, variant, download_bytes: totalBytes, selfcheck: check,
+  return { info, variant, download_bytes: totalBytes, selfcheck: check, readout,
            cache: { available: !!db, from_cache_bytes: fromCache, from_network_bytes: fromNet, refetched },
            manifest: { label: manifest.label, connectome_audit: manifest.connectome_audit, validation: manifest.validation,
                        fast_weight: (manifest.scalars.mode || 'dan') === 'dan' } };
@@ -110,6 +117,15 @@ self.onmessage = async (e) => {
   try {
     if (cmd === 'init') return post({ type: 'result', value: await init(args, post) });
     if (!net) throw new Error('engine not ready');
+    if (cmd === 'frame') {
+      if (!frames) frames = new FrameSession(net, info);
+      const ids = Array.from({ length: manifest.scalars.vocab }, (_, i) => i);
+      return post({ type: 'result', value: frames.step(args.obs, ids) });
+    }
+    if (cmd === 'new' && !game) {
+      frames = new FrameSession(net, info);
+      return post({ type: 'result', value: { brain: null } });
+    }
     if (cmd === 'new') {
       session = new GameSession(net, info, game);
       return post({ type: 'result', value: { state: game.view(game.start()), brain: { t: 0, entry: session.compactHist()[0] } } });
