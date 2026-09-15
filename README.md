@@ -13,7 +13,8 @@ Synaptic weights trained with PHCSSM parallel-scan mode, deployment in sequentia
 
 made by Po-Han Chiang @ NYCU
 
-**Play:** https://phclab.github.io/BeatTheFly/  ·  **Weights:** [MushroomBody_Chess](https://huggingface.co/phclab/MushroomBody_Chess) and
+**Play:** https://phclab.github.io/BeatTheFly/  ·  **Weights:** [MushroomBody_Chess](https://huggingface.co/phclab/MushroomBody_Chess),
+[AntennalLobe_Chess](https://huggingface.co/phclab/AntennalLobe_Chess), [CentralComplex_Chess](https://huggingface.co/phclab/CentralComplex_Chess) and
 [MushroomBody_Othello](https://huggingface.co/phclab/MushroomBody_Othello) on Hugging Face
 
 ## How to play
@@ -22,6 +23,9 @@ Open the page and pick a game. Each game page downloads only its own weights (ch
 
 * **Chess** (`chess/`): drag or click a piece to move. Play White or Black, flip the board, take a move
   back, or let the fly sample its move with a temperature instead of always playing its top choice.
+  Choose which fly brain region you play against: the mushroom body (default), the central complex or
+  the antennal lobe. Each region has its own trained weights on its own wiring and is loaded only
+  when selected.
 * **Othello** (`othello/`): click a highlighted square to place a disc. Play Black or White, flip the
   board, take a move back or sample with a temperature. When a side has no legal square it passes;
   the game ends when neither side can move.
@@ -40,7 +44,7 @@ the legal ones. The neuron state carries over from move to move for the whole ga
 numerical self-check against the reference implementation runs every time a game page loads.
 
 ## Configuration
-`config.js` sets `WEIGHTS_BASE` for each game, the URL of its model folder. `chess/?weights=<url>`
+`config.js` sets `WEIGHTS_BASE` for each game and each chess brain region, the URL of its model folder. `chess/?weights=<url>`
 or `othello/?weights=<url>` overrides it for a single visit.
 
 ## License

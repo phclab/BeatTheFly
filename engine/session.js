@@ -25,7 +25,7 @@ export class Brain {
     this.H = info.H;
     const names = info.class_names, cls = info.cls, side = info.side;
     this.groups = names.map((n, ci) => [n, cls.flatMap((c, i) => (c === ci ? [i] : []))]);
-    this.dan = this.groups.find(g => g[0] === 'DAN')[1];
+    this.dan = (this.groups.find(g => g[0] === 'DAN') || [null, []])[1];
     this.left = side.flatMap((s, i) => (s === 0 ? [i] : []));
     this.right = side.flatMap((s, i) => (s === 1 ? [i] : []));
     this.gh = {};
@@ -139,6 +139,15 @@ export class GameSession {
   }
 
   compactHist() { return this.hist.map(({ bits, ...rest }) => rest); }
+
+  *replay(moves) {
+    try { this.game.replay(moves); } catch (e) { yield { ev: 'error', msg: String(e.message || e) }; return; }
+    for (const { brain, ent } of this.sync(moves)) {
+      const { bits, ...entry } = ent;
+      yield { ev: 'step', t: ent.t, ms: ent.ms, brain, entry };
+    }
+    yield { ev: 'synced', hist: this.compactHist() };
+  }
 
   *think(moves, temperature = 0) {
     let b;

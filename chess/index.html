@@ -47,6 +47,13 @@
     </div>
   </div>
   <div id="colSide">
+    <div class="card" id="regionCard">
+      <h2>Opponent brain region</h2>
+      <div class="regions" id="regionList"></div>
+      <div class="legend"><span id="regionNote">Each region is a different real fly circuit with its own trained
+        weights. Switching keeps your game: the new brain reads the moves so far, one timestep per move.</span></div>
+      <div class="store"><span id="storeLine2"></span> <button id="clearStore2" class="sm" hidden>Remove downloaded brains</button></div>
+    </div>
     <div class="card">
       <h2>Game</h2>
       <div class="row" style="margin-top:8px">
@@ -69,7 +76,7 @@
   <div id="colNotes">
     <div class="card">
       <h2>What you are playing</h2>
-      <div class="note"><p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
+      <div class="note" id="whatNote"><p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
   connectome</b> — 4,510 measured neurons, 1,027,152 neuron-to-neuron connections, excitatory/inhibitory signs from
   neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma
   positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries
@@ -91,6 +98,14 @@
   from the <a href="https://stockfishchess.org/" target="_blank" rel="noopener">Stockfish</a> chess engine. Board, piece artwork, fly cartoon and atlas renderer are original to this project.
   <span id="footck"></span>
 </footer>
+<div id="picker" hidden><div class="pbox">
+  <h3>Choose the fly brain you play against</h3>
+  <div class="sub">Nothing is downloaded until you pick. Each brain is a real circuit from the MaleCNS connectome with its
+    own trained synaptic weights, and it runs entirely in this tab. You can change brain at any time.</div>
+  <div class="picks" id="pickList"></div>
+  <div class="store"><span id="storeLine"></span> <button id="clearStore" class="sm" hidden>Remove downloaded brains</button></div>
+  <div class="pl" id="pickErr"></div>
+</div></div>
 <div id="loader"><div class="box">
   <h3 id="ldH">Loading the fly's brain…</h3>
   <div class="sub" id="ldS">Downloading the trained connectome weights. Everything runs locally in this tab.</div>
@@ -101,10 +116,11 @@
 <script src="../config.js"></script>
 <script type="module">
 import { Chess } from '../vendor/chess.esm.js';
-import { $, esc, ST, FLY, rpc, start, newSession, think, mountPanels, flyBegin, flyEnd, flyThinking, flyPlace, flyTo,
-         carryShow, carryHide, puff, flyToSquare, carryTo } from '../ui/shell.js';
+import { openStore, modelPrefix, getComplete, usage, clearAll } from '../engine/store.js';
+import { $, esc, sleep, ST, FLY, rpc, start, newSession, think, mountPanels, loadModel, syncBrain, flyBegin, flyEnd, flyThinking,
+         flyPlace, flyTo, carryShow, carryHide, puff, flyToSquare, carryTo } from '../ui/shell.js';
 
-mountPanels(`<p>In a real <i>Drosophila</i> this circuit learns odour→reward associations. Here the identical
+const MB_NOTE = `<p>In a real <i>Drosophila</i> this circuit learns odour→reward associations. Here the identical
   wiring is fed chess: 789 board features (occupancy, castling rights, en-passant file, 50-move
   clock, canonicalised to the side to move) plus the move history as tokens, projected onto the
   Kenyon cells. The circuit takes <b>one timestep per move</b>; the readout of that timestep is the
@@ -114,7 +130,8 @@ mountPanels(`<p>In a real <i>Drosophila</i> this circuit learns odour→reward a
   (BSD-2-Clause), vendored locally with its <a href="../vendor/LICENSE.chessjs">copyright notice</a>. The spiking
   network runs in this page as plain JavaScript in a Web Worker and is checked numerically against the reference
   implementation. The board, the chess piece artwork, the fly cartoon and the brain atlas renderer are original
-  work for this project — no third-party board library and no third-party piece set.</p>`);
+  work for this project — no third-party board library and no third-party piece set.</p>`;
+mountPanels(MB_NOTE);
 
 Object.assign(ST, { human: 'white', orient: 'white', legal: [], fen: null, turn: 'w',
                     sanHistory: [], captured: { w: [], b: [] }, advantage: { w: 0, b: 0 } });
@@ -286,14 +303,14 @@ function destsMap() {
 const sideToMoveColor = () => ST.turn === 'w' ? 'white' : 'black';
 function syncBoard() {
   const lm = ST.moves.length ? [ST.moves[ST.moves.length - 1].slice(0, 2), ST.moves[ST.moves.length - 1].slice(2, 4)] : undefined;
-  const myTurn = !ST.status.over && !ST.busy && sideToMoveColor() === ST.human;
+  const myTurn = !ST.status.over && !ST.busy && !SWITCHING && sideToMoveColor() === ST.human;
   boardSet({ fen: ST.fen, orientation: ST.orient, lastMove: lm,
              check: ST.status.check ? sideToMoveColor() : null,
              movable: myTurn ? ST.human : null,
              dests: myTurn ? destsMap() : new Map() });
 }
 function onUserMove(orig, dest) {
-  if (ST.busy || ST.status.over) { syncBoard(); return; }
+  if (ST.busy || ST.status.over || SWITCHING) { syncBoard(); return; }
   const opts = ST.legal.filter(m => m.uci.slice(0, 2) === orig && m.uci.slice(2, 4) === dest);
   if (!opts.length) { syncBoard(); return; }
   if (opts.length === 1) { play(opts[0].uci); return; }
@@ -459,8 +476,8 @@ async function newGame(colour) {
   if (sideToMoveColor() !== ST.human) setTimeout(think, 120);
 }
 
-$('newW').onclick = () => newGame('white');
-$('newB').onclick = () => newGame('black');
+$('newW').onclick = () => { if (!ST.model) { ST.human = 'white'; return showPicker(true); } newGame('white'); };
+$('newB').onclick = () => { if (!ST.model) { ST.human = 'black'; return showPicker(true); } newGame('black'); };
 $('flip').onclick = () => { ST.orient = ST.orient === 'white' ? 'black' : 'white'; syncBoard(); };
 $('undo').onclick = async () => {
   if (ST.busy || !ST.moves.length) return;
@@ -471,8 +488,123 @@ $('undo').onclick = async () => {
   if (!ST.status.over && sideToMoveColor() !== ST.human) setTimeout(think, 120);
 };
 
+const CFG = (window.FLY_CONFIG || {}).chess || {}, QS = new URLSearchParams(location.search);
+let REGIONS = [{ id: 'mb', name: 'Mushroom Body', desc: '', skel: 'data/mb_skel.json' }], CUR = null, SWITCHING = false;
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+function specFor(r) {
+  const c = r.id === 'mb' ? CFG : ((CFG.REGIONS || {})[r.id] || {});
+  return { id: r.id, wsrc: QS.get(r.id === 'mb' ? 'weights' : 'weights_' + r.id) || c.WEIGHTS_BASE || '',
+           variant: QS.get('prec') || c.PRECISION || 'fp16w32', skel: r.skel,
+           region: r.id === 'mb' ? null : r, note: r.note || MB_NOTE };
+}
+const configured = r => { const w = specFor(r).wsrc; return !!w && !/[<>]/.test(w); };
+function renderRegions() {
+  $('regionList').innerHTML = REGIONS.map(r => '<button class="region' + (r.id === CUR ? ' on' : '') + '" data-id="' + r.id + '"' +
+    (configured(r) ? '' : ' disabled') + '><b>' + esc(r.name) + '</b><span class="rd">' + esc(r.desc || '') + '</span>' +
+    '<span class="rs">' + (configured(r) ? 'Strength: ' + esc(r.strength || 'not measured yet (partially trained)') : 'weights location not configured') +
+    '</span></button>').join('');
+  $('regionList').querySelectorAll('button.region').forEach(b => { b.onclick = () => chooseBrain(b.dataset.id); });
+}
+const CACHED = {};
+async function refreshStore() {
+  const db = await openStore();
+  for (const r of REGIONS) CACHED[r.id] = !!(db && r.model && await getComplete(db, modelPrefix(r.model, r.version, specFor(r).variant)));
+  const u = db ? await usage(db) : { bytes: 0, models: [] };
+  const line = !db ? 'This browser cannot keep downloaded brains; each visit downloads again.'
+    : u.models.length ? 'Stored in this browser: ' + (u.bytes / 1e6).toFixed(1) + ' MB (' + u.models.map(m => esc(m.label || m.model)).join(', ') + ').'
+    : 'Downloaded brains are kept in this browser, so each one downloads only once.';
+  for (const [l, b] of [['storeLine', 'clearStore'], ['storeLine2', 'clearStore2']]) { $(l).innerHTML = line; $(b).hidden = !u.models.length; }
+  renderPicker();
+}
+async function clearStoreClick() {
+  const db = await openStore();
+  if (db) await clearAll(db);
+  await refreshStore();
+}
+function renderPicker() {
+  $('pickList').innerHTML = REGIONS.map(r => '<button class="pick" data-id="' + r.id + '"' + (configured(r) ? '' : ' disabled') + '>' +
+    (r.thumb ? '<img src="../' + esc(r.thumb) + '" alt="" width="200" height="130">' : '') +
+    '<b>' + esc(r.name) + '</b>' + (r.tagline ? '<span class="tg">' + esc(r.tagline) + '</span>' : '') +
+    '<span class="rd">' + esc(r.about || r.desc || '') + '</span>' +
+    '<span class="rs">Strength: ' + esc(r.strength || 'not measured yet') + '</span>' +
+    '<span class="sz">' + (!configured(r) ? 'weights location not configured' : CACHED[r.id] ? 'Downloaded ✓ (loads instantly)' :
+      (r.size_mb ? 'Download ' + r.size_mb.toFixed(1) + ' MB' : '')) +
+    '</span></button>').join('');
+  $('pickList').querySelectorAll('button.pick').forEach(b => { b.onclick = () => chooseBrain(b.dataset.id); });
+}
+const showPicker = on => { $('picker').hidden = !on; };
+const setBusy = on => { if (on) $('regionList').setAttribute('aria-busy', 'true'); else $('regionList').removeAttribute('aria-busy'); };
+function waitingState() {
+  $('brainPanels').innerHTML = '<div class="card hero"><h2>Brain atlas</h2><div class="legend"><span>Choose a fly brain to see its ' +
+    'real traced neurons here; they light up as the circuit plays.</span></div></div>';
+  $('notePanels').innerHTML = '';
+  $('whatNote').innerHTML = '<p>Every move is computed by a spiking network wired from a <b>real fruit fly brain circuit</b> in the ' +
+    'MaleCNS connectome, with trained synaptic weights. Choose which circuit you play against: the mushroom body, the antennal lobe ' +
+    'or the central complex. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.</p>';
+  boardSet({ fen: START_FEN, orientation: 'white', movable: null, dests: new Map(), lastMove: null, check: null });
+  $('status').innerHTML = '<span class="big">Choose your opponent</span> <span style="color:var(--dim)">— pick a fly brain to start</span>';
+}
+async function chooseBrain(id) {
+  if (ST.model) return switchRegion(id);
+  const r = REGIONS.find(x => x.id === id);
+  if (!r || !configured(r) || SWITCHING) return;
+  SWITCHING = true; showPicker(false); CUR = id; renderRegions(); setBusy(true);
+  try {
+    await loadModel(specFor(r));
+  } catch (e) {
+    $('loader').style.display = 'none'; CUR = null; renderRegions(); SWITCHING = false; setBusy(false);
+    $('pickErr').textContent = 'Could not load ' + r.name + ': ' + e.message; showPicker(true); return;
+  }
+  SWITCHING = false;
+  updateWhat();
+  refreshStore();
+  await newGame(ST.human || 'white');
+  setBusy(false);
+}
+function updateWhat() {
+  const d = ST.info, name = d.region ? d.region.name.toLowerCase() : 'mushroom-body';
+  $('whatNote').innerHTML = '<p>Every move is computed by a spiking network wired from the <b>real MaleCNS ' + esc(name) +
+    '\n  connectome</b> — ' + d.H.toLocaleString('en-US') + ' measured neurons, ' + Number(d.edges).toLocaleString('en-US') +
+    ' neuron-to-neuron connections, excitatory/inhibitory signs from\n  neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma\n  positions</b> and light up as the circuit runs. ' +
+    'The network\'s state is <b>never reset</b>: it carries\n  forward from move to move, so what you see at move 40 descends from move 1. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.</p>';
+}
+async function switchRegion(id) {
+  if (id === CUR || SWITCHING) return;
+  const r = REGIONS.find(x => x.id === id), prev = REGIONS.find(x => x.id === CUR);
+  if (!r || !configured(r)) return;
+  SWITCHING = true; CUR = id; renderRegions(); setBusy(true);
+  syncBoard(); renderStatus('loading the ' + r.name.toLowerCase() + '…');
+  while (ST.busy || FLY.busy || ST.anim) await sleep(100);
+  try {
+    await loadModel(specFor(r));
+  } catch (e) {
+    CUR = prev.id; renderRegions();
+    try { await loadModel(specFor(prev)); } catch (_) { SWITCHING = false; setBusy(false); return; }
+  }
+  await newSession();
+  await syncBrain(ST.moves);
+  await validate();
+  updateWhat();
+  refreshStore();
+  SWITCHING = false; setBusy(false);
+  syncBoard();
+  if (!ST.status.over && sideToMoveColor() !== ST.human) setTimeout(think, 120);
+}
+
 boardInit($('boardwrap'), onUserMove);
+try {
+  const rs = await fetch('../data/regions_chess.json');
+  if (rs.ok) REGIONS = (await rs.json()).regions;
+} catch (_) {}
+const want = REGIONS.find(r => r.id === QS.get('brain'));
+if (want && configured(want)) CUR = want.id;
+renderRegions();
+renderPicker();
+$('clearStore').onclick = clearStoreClick; $('clearStore2').onclick = clearStoreClick;
+refreshStore();
 start({
+  initialModel: () => (CUR ? specFor(REGIONS.find(r => r.id === CUR)) : null),
+  modelNote: () => ((REGIONS.find(r => r.id === CUR) || {}).desc || ''),
   kind: 'chess',
   render: boardRender,
   sync: syncBoard,
@@ -481,8 +613,15 @@ start({
   vocabText: v => v + ' UCI tokens',
   onGameOver(status) { ST.status = status; renderStatus(); renderOver(); },
   onFinal(ev) { const preFen = ST.fen; ST.moves.push(ev.move); return flyPlayMove(ev, preFen); },
-  caveat(st) {
+  caveat(st, region) {
     const pc = v => (100 * v).toFixed(1) + '%';
+    if (region) return {
+      html: '<b>Honest caveat.</b> This ' + esc(region.name.toLowerCase()) + ' model is only partially trained and plays ' +
+        'far weaker than the mushroom body. ' + (region.strength ? esc(region.strength.replace(/\.$/, '')) + '. ' : 'Its strength has not been measured yet. ') +
+        'There is no search and no evaluation function: each move is one timestep of the network, restricted to legal moves by chess.js. ' +
+        'The interesting claim is <i>which substrate is computing</i>.',
+      row: region.strength ? esc(region.strength) : 'not measured yet (partially trained)',
+    };
     if (!st || !st.elo_text) return { html: '<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet. ' +
       'Every move is restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.' };
     return {
@@ -495,7 +634,10 @@ start({
       row: esc(st.elo_text) + ' · Stockfish best-move agreement ' + pc(st.sf_agreement) + ' · human move-match ' + pc(st.human_move_match),
     };
   },
-}).then(() => newGame('white'));
+}).then(() => {
+  if (ST.model) { updateWhat(); return newGame('white'); }
+  waitingState(); showPicker(true);
+});
 </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { FlyRSNN, loadWeights } from './rsnn.js';
 import { GameSession } from './session.js';
+import { openStore, fileKey, modelPrefix, getFile, putFile, markComplete, dropModel, evictOldVersions } from './store.js';
 
 let net = null, info = null, manifest = null, game = null, session = null;
 
@@ -55,19 +56,52 @@ function runSelfcheck(sc) {
 async function init({ base, wbase, variant, kind }, post) {
   const wb = wbase.endsWith('/') ? wbase : wbase + '/';
   [manifest, info] = await Promise.all([fetchJSON(wb + 'manifest.json'), fetchJSON(wb + 'info.json')]);
+  session = null; net = null;
   game = await makeGame(kind, base);
-  let last = 0;
-  const { T, totalBytes } = await loadWeights(manifest, variant, (file, cb) => fetchBytes(wb + file, cb),
-    (done, total, file) => {
+  const ents = manifest.variants[variant];
+  if (!ents) throw new Error('unknown weight variant: ' + variant);
+  const model = manifest.model || 'model', version = manifest.version || '0';
+  const sizes = {}; for (const e of Object.values(ents)) sizes[e.file] = e.bytes;
+  const db = await openStore();
+  let fromCache = 0, fromNet = 0;
+  const getBytes = network => async (file, cb) => {
+    const key = fileKey(model, version, variant, file);
+    if (db && !network) {
+      const hit = await getFile(db, key);
+      if (hit && hit.byteLength === sizes[file]) { fromCache += hit.byteLength; cb && cb(hit.byteLength); return hit; }
+    }
+    const b = await fetchBytes(wb + file, cb);
+    fromNet += b.byteLength;
+    if (db && b.byteLength === sizes[file]) await putFile(db, key, b);
+    return b;
+  };
+  let sc = null;
+  try { sc = await fetchJSON(wb + `selfcheck_${variant}.json`); } catch (_) { sc = null; }
+  const load = async network => {
+    let last = 0;
+    const { T, totalBytes } = await loadWeights(manifest, variant, getBytes(network), (done, total, file) => {
       const t = performance.now();
       if (t - last > 80 || done === total) { last = t; post({ type: 'progress', done, total, file }); }
     });
-  post({ type: 'progress', done: totalBytes, total: totalBytes, file: 'building the network' });
-  net = new FlyRSNN(manifest, T);
-  let check = null;
-  try { check = runSelfcheck(await fetchJSON(wb + `selfcheck_${variant}.json`)); } catch (_) { check = null; }
+    post({ type: 'progress', done: totalBytes, total: totalBytes, file: 'building the network' });
+    net = new FlyRSNN(manifest, T);
+    return { totalBytes, check: sc ? runSelfcheck(sc) : null };
+  };
+  let { totalBytes, check } = await load(false);
+  let refetched = false;
+  if (db && fromCache > 0 && check && check.legal_top1_agree !== check.plies) {
+    await dropModel(db, model, version, variant);
+    fromCache = 0; fromNet = 0; refetched = true;
+    ({ totalBytes, check } = await load(true));
+  }
+  if (db && (!check || check.legal_top1_agree === check.plies)) {
+    await markComplete(db, modelPrefix(model, version, variant), { model, version, variant, label: manifest.label, bytes: totalBytes });
+    await evictOldVersions(db, model, version);
+  }
   return { info, variant, download_bytes: totalBytes, selfcheck: check,
-           manifest: { label: manifest.label, connectome_audit: manifest.connectome_audit, validation: manifest.validation } };
+           cache: { available: !!db, from_cache_bytes: fromCache, from_network_bytes: fromNet, refetched },
+           manifest: { label: manifest.label, connectome_audit: manifest.connectome_audit, validation: manifest.validation,
+                       fast_weight: (manifest.scalars.mode || 'dan') === 'dan' } };
 }
 
 self.onmessage = async (e) => {
@@ -85,6 +119,11 @@ self.onmessage = async (e) => {
       let s;
       try { s = game.replay(moves); } catch (err) { return post({ type: 'error', message: String(err.message || err) }); }
       return post({ type: 'result', value: game.view(s) });
+    }
+    if (cmd === 'sync') {
+      if (!session) session = new GameSession(net, info, game);
+      for (const ev of session.replay(args.moves || [])) post({ type: 'event', ev });
+      return post({ type: 'result', value: { done: true } });
     }
     if (cmd === 'think') {
       if (!session) session = new GameSession(net, info, game);

@@ -5,64 +5,49 @@ export const MB = n => (n / 1e6).toFixed(1);
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 export const SITE = new URL('../', import.meta.url);
 const CLR = { KC: [79, 209, 197], MBON: [122, 162, 255], DAN: [255, 122, 182], APL: [197, 140, 255], other: [152, 166, 189] };
+const DIM = { KC: 0.016, MBON: 0.055, DAN: 0.045, APL: 0.11, other: 0.045 };
+const LW = { KC: 0.45, MBON: 0.60, DAN: 0.55, APL: 0.70, other: 0.55 };
+const HOT = { KC: 0.13, MBON: 0.34, DAN: 0.30, APL: 0.42, other: 0.24 };
+const MB_ORDER = ['KC', 'other', 'DAN', 'MBON', 'APL'];
+const MB_VARS = { KC: '--kc', MBON: '--mbon', DAN: '--dan', APL: '--apl', other: '--oth' };
 
 export const ST = {
   ready: false, moves: [], human: '', orient: '', busy: false, temp: 0, status: { over: false }, info: null,
-  proj: 'frontal', memory: false, bits: [], hist: [], scrubT: null, gen: 0, anim: null, lastVf: null,
+  proj: 'frontal', memory: false, fw: true, bits: [], hist: [], scrubT: null, gen: 0, anim: null, lastVf: null, model: null,
 };
-let PAGE = null;
+let PAGE = null, NOTE = '', REGION = null;
 
-const PANELS_SIDE = `
-<div class="card hero">
-  <h2>Mushroom body atlas <span class="sm" id="atlasrc">measured soma coordinates</span></h2>
-  <div class="row" style="margin-bottom:10px">
-    <button id="vFront" class="on sm">Frontal view</button>
-    <button id="vDors" class="sm">Dorsal view</button>
-    <span style="flex:1"></span>
-    <button id="vMem" class="sm">Memory overlay: off</button>
-  </div>
-  <div id="atlaswrap"><canvas id="atlas"></canvas></div>
-  <div class="alab">
-    <div>◀ <b>left hemisphere</b> <span id="hdL">2241</span> neurons</div>
-    <div><span id="hdR">2269</span> neurons <b>right hemisphere</b> ▶</div>
-  </div>
-  <div class="legend">
-    <span><span class="dot" style="background:var(--kc)"></span>Kenyon cell</span>
+const isMB = () => !ST.info || !ST.info.region;
+const colorOf = n => (ST.info && ST.info.class_colors && ST.info.class_colors[n]) || CLR[n] || CLR.other;
+const rgb = n => 'rgb(' + colorOf(n).join(',') + ')';
+const dotColor = n => (isMB() && MB_VARS[n]) ? 'var(' + MB_VARS[n] + ')' : rgb(n);
+const drawOrder = () => (ST.info && ST.info.draw_order) || MB_ORDER;
+function styleOf(n) {
+  if (n in DIM) return [DIM[n], LW[n], HOT[n]];
+  const big = ST.info && ST.info.groups && ST.info.groups[n] > 1000;
+  return big ? [DIM.KC, LW.KC, HOT.KC] : [DIM.other, LW.other, HOT.other];
+}
+function panelClasses() {
+  const names = ST.info ? ST.info.class_names : ['KC', 'MBON', 'DAN', 'APL', 'other'];
+  return names.length > 4 ? names.filter(n => n !== 'other') : names.slice();
+}
+function hasSides(n) {
+  if (!ST.info) return true;
+  const { side, cls, class_names: names } = ST.info, ci = names.indexOf(n);
+  for (let i = 0; i < cls.length; i++) if (cls[i] === ci && side[i] < 2) return true;
+  return false;
+}
+function hemiClasses() {
+  return ST.info ? panelClasses().filter(hasSides).slice(0, 3) : ['KC', 'MBON', 'DAN'];
+}
+
+const MB_LEGEND = `<span><span class="dot" style="background:var(--kc)"></span>Kenyon cell</span>
     <span><span class="dot" style="background:var(--mbon)"></span>MBON</span>
     <span><span class="dot" style="background:var(--dan)"></span>DAN</span>
     <span><span class="dot" style="background:var(--apl)"></span>APL</span>
-    <span><span class="dot" style="background:var(--oth)"></span>other MB</span>
-    <span id="atlasnote">Dim = silent, bright = spiking on this timestep.</span>
-  </div>
-  <div class="legend" style="margin-top:4px"><span class="small" id="skelsrc"></span>
-    <span class="small">every line is a traced neurite; firing changes brightness, never thickness</span>
-    <span class="small">atlas redraw <b id="mDraw">—</b></span></div>
-  <div class="scrub">
-    <button id="rewPlay" class="sm">▶ replay game</button>
-    <input type="range" id="scrub" min="0" max="0" value="0">
-    <span class="lb" id="scrublb">live</span>
-  </div>
-</div>
-<div class="card hero">
-  <h2>Continuous activity across the game <span class="sm">state carried, never reset</span></h2>
-  <canvas class="chart" id="gamec"></canvas>
-  <div class="grid4" style="margin-top:12px">
-    <div class="metric"><div class="k">neurons firing now</div><div class="v" id="mRate">—</div>
-      <div class="s" id="mRateS">of 4510</div></div>
-    <div class="metric"><div class="k">carried from previous move</div><div class="v" id="mOvP">—</div>
-      <div class="s">spike overlap</div></div>
-    <div class="metric"><div class="k">still shared with move 1</div><div class="v" id="mOv1">—</div>
-      <div class="s">unbroken state trajectory</div></div>
-    <div class="metric"><div class="k">cost per timestep</div><div class="v" id="mMs">—</div>
-      <div class="s" id="mMsS">constant — O(H) state</div></div>
-  </div>
-  <canvas class="chart" id="latc" style="margin-top:12px"></canvas>
-  <div class="legend"><span>The lower trace is wall-clock cost per timestep in your browser. It stays
-    <b>flat</b> as the game grows because the circuit carries its state instead of re-reading the game
-    — the readout at move 40 costs exactly what move 1 cost.</span></div>
-</div>
-<div class="grid2">
-  <div class="card">
+    <span><span class="dot" style="background:var(--oth)"></span>other MB</span>`;
+
+const DAN_CARD = `<div class="card">
     <h2>Dopamine gate — the write</h2>
     <div class="lamp">
       <div class="bulb" id="bulb"></div>
@@ -83,13 +68,22 @@ const PANELS_SIDE = `
     </svg>
     <div class="legend"><span>When DANs spike they multiplicatively gate the KC→MBON current and drive
       the fast-weight write — the fly's real three-factor plasticity rule, running inside the game.</span></div>
-  </div>
-  <div class="card">
+  </div>`;
+
+const MB_RATE_NOTE = `KC stays <b>sparse</b> — that is the point of an expansion layer, and APL's
+    global inhibition is what enforces it. MBON is a small population so its rate is coarse; APL is
+    one neuron per hemisphere, so it reads 0%, 50% or 100%.`;
+
+function panelsSide() {
+  const mb = isMB();
+  const legend = mb ? MB_LEGEND : ST.info.class_names.map(n =>
+    `<span><span class="dot" style="background:${rgb(n)}"></span>${esc((ST.info.class_labels || {})[n] || n)}</span>`).join('\n    ');
+  const hemiRows = hemiClasses().map((n, k) =>
+    `<div class="hemi"><div class="hb L"><i id="hb${k}L"></i></div><div class="mid">${esc(n)}</div><div class="hb R"><i id="hb${k}R"></i></div></div>`).join('\n    ') +
+    `\n    <div class="hemi"><div class="hb L"><i id="hbAL"></i></div><div class="mid">all</div><div class="hb R"><i id="hbAR"></i></div></div>`;
+  const hemiCard = `<div class="card">
     <h2>Hemispheres</h2>
-    <div class="hemi"><div class="hb L"><i id="hL"></i></div><div class="mid">KC</div><div class="hb R"><i id="hR"></i></div></div>
-    <div class="hemi"><div class="hb L"><i id="hL2"></i></div><div class="mid">MBON</div><div class="hb R"><i id="hR2"></i></div></div>
-    <div class="hemi"><div class="hb L"><i id="hL3"></i></div><div class="mid">DAN</div><div class="hb R"><i id="hR3"></i></div></div>
-    <div class="hemi"><div class="hb L"><i id="hL4"></i></div><div class="mid">all</div><div class="hb R"><i id="hR4"></i></div></div>
+    ${hemiRows}
     <div class="legend" style="margin-top:13px"><span id="crosstxt">The connectome is bilateral, with
       edges crossing the midline in both directions.</span></div>
     <div class="grid2" style="margin-top:10px">
@@ -98,22 +92,64 @@ const PANELS_SIDE = `
       <div class="metric"><div class="k">R→L / L→R</div><div class="v" id="mRL">—</div>
         <div class="s">measured, not modelled</div></div>
     </div>
+  </div>`;
+  const rateNote = mb ? MB_RATE_NOTE : esc((REGION && REGION.rate_note) || '');
+  return `
+<div class="card hero">
+  <h2>${mb ? 'Mushroom body' : esc(ST.info.region.name)} atlas <span class="sm" id="atlasrc">measured soma coordinates</span></h2>
+  <div class="row" style="margin-bottom:10px">
+    <button id="vFront" class="sm${ST.proj === 'frontal' ? ' on' : ''}">Frontal view</button>
+    <button id="vDors" class="sm${ST.proj === 'dorsal' ? ' on' : ''}">Dorsal view</button>
+    <span style="flex:1"></span>${ST.fw ? `
+    <button id="vMem" class="sm${ST.memory ? ' on' : ''}">Memory overlay: ${ST.memory ? 'on' : 'off'}</button>` : ''}
+  </div>
+  <div id="atlaswrap"><canvas id="atlas"></canvas></div>
+  <div class="alab">
+    <div>◀ <b>left hemisphere</b> <span id="hdL">2241</span> neurons</div>
+    <div><span id="hdR">2269</span> neurons <b>right hemisphere</b> ▶</div>
+  </div>
+  <div class="legend">
+    ${legend}
+    <span id="atlasnote">Dim = silent, bright = spiking on this timestep.</span>
+  </div>
+  <div class="legend" style="margin-top:4px"><span class="small" id="skelsrc"></span>
+    <span class="small">every line is a traced neurite; firing changes brightness, never thickness</span>
+    <span class="small">atlas redraw <b id="mDraw">—</b></span></div>
+  <div class="scrub">
+    <button id="rewPlay" class="sm">▶ replay game</button>
+    <input type="range" id="scrub" min="0" max="0" value="0">
+    <span class="lb" id="scrublb">live</span>
   </div>
 </div>
+<div class="card hero">
+  <h2>Continuous activity across the game <span class="sm">state carried, never reset</span></h2>
+  <canvas class="chart" id="gamec"></canvas>
+  <div class="grid4" style="margin-top:12px">
+    <div class="metric"><div class="k">neurons firing now</div><div class="v" id="mRate">—</div>
+      <div class="s" id="mRateS">of ${ST.info ? ST.info.H : 4510}</div></div>
+    <div class="metric"><div class="k">carried from previous move</div><div class="v" id="mOvP">—</div>
+      <div class="s">spike overlap</div></div>
+    <div class="metric"><div class="k">still shared with move 1</div><div class="v" id="mOv1">—</div>
+      <div class="s">unbroken state trajectory</div></div>
+    <div class="metric"><div class="k">cost per timestep</div><div class="v" id="mMs">—</div>
+      <div class="s" id="mMsS">constant — O(H) state</div></div>
+  </div>
+  <canvas class="chart" id="latc" style="margin-top:12px"></canvas>
+  <div class="legend"><span>The lower trace is wall-clock cost per timestep in your browser. It stays
+    <b>flat</b> as the game grows because the circuit carries its state instead of re-reading the game
+    — the readout at move 40 costs exactly what move 1 cost.</span></div>
+</div>
+${mb ? `<div class="grid2">\n  ${DAN_CARD}\n  ${hemiCard}\n</div>` : hemiCard}
 <div class="card">
   <h2>Firing rate per cell class</h2>
   <canvas class="chart" id="ratec"></canvas>
   <div class="grid4" id="classes" style="margin-top:12px"><div class="metric"><div class="k">waiting</div>
     <div class="v">—</div><div class="s">no move computed yet</div></div></div>
-  <div class="legend"><span>KC stays <b>sparse</b> — that is the point of an expansion layer, and APL's
-    global inhibition is what enforces it. MBON is a small population so its rate is coarse; APL is
-    one neuron per hemisphere, so it reads 0%, 50% or 100%.</span></div>
+  <div class="legend"><span>${rateNote}</span></div>
 </div>`;
+}
 
-const circuitCard = gameNote => `
-<div class="card">
-  <h2>The circuit you are watching</h2>
-  <div class="note"><p>The <b>mushroom body</b> is the fly's olfactory <i>learning</i> centre. Four
+const MB_CELLS = `<div class="note"><p>The <b>mushroom body</b> is the fly's olfactory <i>learning</i> centre. Four
     cell classes do the work, and all four are drawn on the atlas:</p></div>
   <div class="cells">
     <div class="cell"><div class="h"><span class="dot" style="background:var(--kc)"></span>Kenyon cells —
@@ -132,26 +168,56 @@ const circuitCard = gameNote => `
       <span id="cAPL">2</span></div>
       <div class="d">One giant GABAergic neuron per hemisphere, spanning the whole structure. Global
       <b>inhibitory feedback</b> that keeps the KC code sparse.</div></div>
-  </div>
-  <div class="note" style="margin-top:12px">
-    ${gameNote}
-    <p class="warn" id="caveat"></p>
-    <p class="small" style="margin-bottom:0">Connectome and soma coordinates: <b>MaleCNS v1.0</b>
+  </div>`;
+
+const MB_SMALL = `Connectome and soma coordinates: <b>MaleCNS v1.0</b>
     (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>.
     Excitatory/inhibitory signs from the release's neurotransmitter annotations; Kenyon cells are
     treated as cholinergic (excitatory). 4,510 neurons, 1,027,152 within-MB neuron-to-neuron connections,
     <span id="crossn">134,807</span> of them crossing the midline. Neuron morphology from the same
-    release's traced skeletons.</p>
+    release's traced skeletons.`;
+
+function circuitCard() {
+  const mb = isMB(), d = ST.info;
+  let cells = MB_CELLS, small = MB_SMALL;
+  if (!mb) {
+    cells = `<div class="note">${(REGION && REGION.intro) || ''}</div>
+  <div class="cells">` + ((REGION && REGION.cells) || []).map(c =>
+      `<div class="cell"><div class="h"><span class="dot" style="background:${rgb(c.cls)}"></span>${esc(c.title)} —
+      <span>${Number(d.groups[c.cls] || 0).toLocaleString('en-US')}</span></div>
+      <div class="d">${esc(c.desc)}</div></div>`).join('\n    ') + `</div>`;
+    small = `Connectome and soma coordinates: <b>MaleCNS v1.0</b>
+    (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>.
+    Excitatory/inhibitory signs from the release's predicted neurotransmitters.
+    ${d.H.toLocaleString('en-US')} neurons, ${Number(d.edges).toLocaleString('en-US')} within-region neuron-to-neuron connections` +
+      (d.cross ? `, <span id="crossn">${Number(d.cross.cross).toLocaleString('en-US')}</span> of them crossing the midline` : '') +
+      `. Neuron morphology from the same release's traced skeletons.`;
+  }
+  return `
+<div class="card">
+  <h2>The circuit you are watching</h2>
+  ${cells}
+  <div class="note" style="margin-top:12px">
+    ${NOTE}
+    <p class="warn" id="caveat"></p>
+    <p class="small" style="margin-bottom:0">${small}</p>
   </div>
 </div>
 <div class="card">
   <h2>The machine</h2>
   <table class="fact" id="facts"><tr><td>loading…</td><td></td></tr></table>
 </div>`;
+}
+
+function renderPanels() {
+  $('brainPanels').innerHTML = panelsSide();
+  $('notePanels').innerHTML = circuitCard();
+  wirePanels();
+}
 
 export function mountPanels(gameNote) {
-  $('brainPanels').innerHTML = PANELS_SIDE;
-  $('notePanels').innerHTML = circuitCard(gameNote);
+  NOTE = gameNote;
+  renderPanels();
 }
 
 const W = { worker: null, seq: 0, pending: new Map() };
@@ -181,9 +247,9 @@ function unpackBytes(b64, n) {
 
 let SKEL = null, PROJ = null, PSTART = null;
 
-async function loadSkeletons() {
+async function loadSkeletons(url) {
   try {
-    const rs = await fetch(new URL('data/mb_skel.json', SITE)); const j = rs.ok ? await rs.json() : null;
+    const rs = await fetch(new URL(url, SITE)); const j = rs.ok ? await rs.json() : null;
     if (!j) return null;
     const b = s => { const raw = atob(s), u = new Uint8Array(raw.length);
                      for (let i = 0; i < raw.length; i++) u[i] = raw.charCodeAt(i); return u; };
@@ -210,7 +276,7 @@ function projectSkel(Wd, Hd) {
     const kci = ST.info.class_names.indexOf('KC');
     const xs = [], ys = [];
     for (let i = 0; i < ST.info.H; i++) {
-      if (ST.info.cls[i] !== kci) continue;
+      if (kci >= 0 && ST.info.cls[i] !== kci) continue;
       for (let j = SKEL.npoly[i]; j < SKEL.npoly[i + 1]; j++) {
         let k = PSTART[j]; const n = SKEL.plen[j];
         for (let q = 0; q < n; q++, k++) { xs.push(SKEL.xyz[3 * k + ax]); ys.push(SKEL.xyz[3 * k + ay]); }
@@ -263,9 +329,6 @@ function layoutSoma(Wd, Hd) {
 }
 
 let ATLAS = null, SOMA = null;
-const DIM = { KC: 0.016, MBON: 0.055, DAN: 0.045, APL: 0.11, other: 0.045 };
-const LW = { KC: 0.45, MBON: 0.60, DAN: 0.55, APL: 0.70, other: 0.55 };
-const HOT = { KC: 0.13, MBON: 0.34, DAN: 0.30, APL: 0.42, other: 0.24 };
 
 function currentBits() {
   const t = ST.scrubT != null ? ST.scrubT : ST.bits.length - 1;
@@ -295,16 +358,16 @@ function renderBg(Wd, Hd, dpr) {
   const NAMES = ST.info.class_names;
   x.lineCap = 'round'; x.lineJoin = 'round';
   if (SKEL) {
-    for (const cname of ['KC', 'other', 'DAN', 'MBON', 'APL']) {
+    for (const cname of drawOrder()) {
       const ci = NAMES.indexOf(cname); if (ci < 0) continue;
-      const col = CLR[cname] || CLR.other;
-      x.strokeStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + DIM[cname] + ')';
-      x.lineWidth = LW[cname] / dpr;
+      const col = colorOf(cname), [dim, lw] = styleOf(cname);
+      x.strokeStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + dim + ')';
+      x.lineWidth = lw / dpr;
       for (let i = 0; i < ST.info.H; i++) if (ST.info.cls[i] === ci) strokeNeuron(x, i);
     }
   } else if (SOMA) {
     for (let i = 0; i < ST.info.H; i++) {
-      const col = CLR[NAMES[ST.info.cls[i]]] || CLR.other;
+      const col = colorOf(NAMES[ST.info.cls[i]]);
       x.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0.14)';
       x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i], 0, 6.283); x.fill();
     }
@@ -341,17 +404,17 @@ export function drawAtlas(bits, vf) {
   if (bits) {
     if (SKEL) {
       x.globalCompositeOperation = 'lighter';
-      for (const cname of ['KC', 'other', 'DAN', 'MBON', 'APL']) {
+      for (const cname of drawOrder()) {
         const ci = NAMES.indexOf(cname); if (ci < 0) continue;
-        const col = CLR[cname] || CLR.other;
-        x.strokeStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + HOT[cname] + ')';
-        x.lineWidth = LW[cname] / ATLAS.dpr;
+        const col = colorOf(cname), [, lw, hot] = styleOf(cname);
+        x.strokeStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + hot + ')';
+        x.lineWidth = lw / ATLAS.dpr;
         for (let i = 0; i < ST.info.H; i++) if (ST.info.cls[i] === ci && bits[i]) strokeNeuron(x, i);
       }
       x.globalCompositeOperation = 'source-over';
     } else if (SOMA) {
       for (let i = 0; i < bits.length; i++) { if (!bits[i]) continue;
-        const col = CLR[NAMES[ST.info.cls[i]]] || CLR.other;
+        const col = colorOf(NAMES[ST.info.cls[i]]);
         x.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')';
         x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 1.45, 0, 6.283); x.fill(); }
     }
@@ -393,18 +456,17 @@ function lineChart(id, series, ymax, xn, h, xlab) {
 }
 
 function hemiBar(a, bId, g) {
-  if (!g || g.L == null) return;
+  if (!g || g.L == null || !$(a)) return;
   const m = Math.max(g.L, g.R, 1e-6);
   $(a).style.width = (100 * g.L / m) + '%'; $(bId).style.width = (100 * g.R / m) + '%';
 }
 function renderClasses(g) {
-  const names = [['KC', '--kc'], ['MBON', '--mbon'], ['DAN', '--dan'], ['APL', '--apl']];
-  $('classes').innerHTML = names.filter(([n]) => g[n]).map(([n, c]) =>
-    '<div class="metric"><div class="k"><span class="dot" style="background:var(' + c + ')"></span>' + n +
+  $('classes').innerHTML = panelClasses().filter(n => g[n]).map(n =>
+    '<div class="metric"><div class="k"><span class="dot" style="background:' + dotColor(n) + '"></span>' + esc(n) +
     ' <span style="color:#55617a">n=' + (ST.info ? ST.info.groups[n] : '') + '</span></div>' +
     '<div class="v">' + (100 * g[n].rate).toFixed(1) + '%</div>' +
     '<div class="s">' + g[n].count + ' spiking' +
-    (g[n].L != null ? '  ·  L ' + (100 * g[n].L).toFixed(0) + ' / R ' + (100 * g[n].R).toFixed(0) : '') +
+    (g[n].L != null && hasSides(n) ? '  ·  L ' + (100 * g[n].L).toFixed(0) + ' / R ' + (100 * g[n].R).toFixed(0) : '') +
     '</div></div>').join('');
 }
 function onStep(ev) {
@@ -422,12 +484,14 @@ function onStep(ev) {
   $('mOvP').textContent = e.overlap_prev == null ? '—' : (100 * e.overlap_prev).toFixed(0) + '%';
   $('mOv1').textContent = e.overlap_first == null ? '—' : (100 * e.overlap_first).toFixed(0) + '%';
   $('mMs').textContent = ev.ms.toFixed(0) + ' ms';
-  $('bulb').classList.toggle('on', !!b.dan_gate_open);
-  $('mech').classList.toggle('fire', !!b.dan_gate_open);
-  $('danN').textContent = b.dan_count;
+  if ($('bulb')) {
+    $('bulb').classList.toggle('on', !!b.dan_gate_open);
+    $('mech').classList.toggle('fire', !!b.dan_gate_open);
+    $('danN').textContent = b.dan_count;
+  }
   const g = b.groups;
-  hemiBar('hL', 'hR', g.KC); hemiBar('hL2', 'hR2', g.MBON); hemiBar('hL3', 'hR3', g.DAN);
-  if (b.hemi) hemiBar('hL4', 'hR4', { L: b.hemi.L, R: b.hemi.R });
+  hemiClasses().forEach((n, k) => hemiBar('hb' + k + 'L', 'hb' + k + 'R', g[n]));
+  if (b.hemi) hemiBar('hbAL', 'hbAR', { L: b.hemi.L, R: b.hemi.R });
   renderClasses(g);
 }
 export function renderCands(cands) {
@@ -451,8 +515,8 @@ function drawGameCharts() {
   lineChart('latc', [
     { name: 'ms / timestep', color: '#5ad1ff', v: h.map(e => e.ms) },
   ], Math.max(60, Math.ceil(Math.max(...h.map(e => e.ms)) * 1.3)), n, 96, 'timestep →');
-  lineChart('ratec', ['KC', 'MBON', 'DAN', 'APL'].map(k => ({
-    name: k, color: 'rgb(' + CLR[k].join(',') + ')', v: h.map(e => (e.per_class && e.per_class[k]) || 0),
+  lineChart('ratec', panelClasses().map(k => ({
+    name: k, color: rgb(k), v: h.map(e => (e.per_class && e.per_class[k]) || 0),
   })), 1.0, n, 132, 'timestep →');
   const ms = h.map(e => e.ms);
   $('mMsS').textContent = 'first ' + ms[0].toFixed(0) + ' · last ' + ms[ms.length - 1].toFixed(0) + ' ms';
@@ -611,9 +675,10 @@ function loaderMsg(h, sub, err) {
   $('loader').style.display = 'flex';
 }
 
-function wire() {
+let RP = null;
+function wirePanels() {
+  if (RP) { clearInterval(RP); RP = null; }
   $('scrub').oninput = e => showT(+e.target.value);
-  let RP = null;
   $('rewPlay').onclick = () => {
     if (RP) { clearInterval(RP); RP = null; $('rewPlay').textContent = '▶ replay game'; return; }
     let t = 0; $('rewPlay').textContent = '■ stop';
@@ -630,12 +695,15 @@ function wire() {
   };
   $('vFront').onclick = () => setProj('frontal');
   $('vDors').onclick = () => setProj('dorsal');
-  $('vMem').onclick = () => {
+  if ($('vMem')) $('vMem').onclick = () => {
     ST.memory = !ST.memory;
     $('vMem').textContent = 'Memory overlay: ' + (ST.memory ? 'on' : 'off');
     $('vMem').classList.toggle('on', ST.memory);
-    drawAtlas(...currentBits());
+    if (ST.info) drawAtlas(...currentBits());
   };
+}
+
+function wirePage() {
   [['tg0', 0], ['tg1', 0.5], ['tg2', 1.0]].forEach(([id, t]) => {
     $(id).onclick = () => { ST.temp = t; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
   });
@@ -653,11 +721,18 @@ function wire() {
   if (window.ResizeObserver) new ResizeObserver(() => PAGE.render()).observe($('boardwrap'));
 }
 
+function defaultModel(kind) {
+  const qs = new URLSearchParams(location.search);
+  const CFG = (window.FLY_CONFIG || {})[kind] || {};
+  return { id: kind, wsrc: qs.get('weights') || CFG.WEIGHTS_BASE || '', variant: qs.get('prec') || CFG.PRECISION || 'fp16w32',
+           skel: 'data/mb_skel.json', region: null };
+}
+
 export async function start(page) {
   PAGE = page;
   fitBoard();
   flyInit();
-  wire();
+  wirePage();
   const missing = [];
   if (typeof Worker === 'undefined') missing.push('Web Workers');
   else if (!supportsModuleWorker()) missing.push('module Web Workers');
@@ -669,48 +744,69 @@ export async function start(page) {
       '</b>. Please use a current Chrome, Edge, Firefox (114+) or Safari (15+).', true);
     throw new Error('unsupported browser');
   }
-  const qs = new URLSearchParams(location.search);
-  const CFG = (window.FLY_CONFIG || {})[page.kind] || {};
-  const wsrc = qs.get('weights') || CFG.WEIGHTS_BASE || '';
-  if (!wsrc || /[<>]/.test(wsrc)) {
-    loaderMsg('Weights location not configured', 'Set <b>WEIGHTS_BASE</b> for this game in <code>config.js</code> to ' +
-      'the model folder URL (e.g. the Hugging Face <code>resolve/main/</code> URL).', true);
-    throw new Error('WEIGHTS_BASE not configured');
-  }
-  const wbase = new URL(wsrc, SITE).href, variant = qs.get('prec') || CFG.PRECISION || 'fp16w32';
   W.worker = new Worker(new URL('../engine/worker.js', import.meta.url), { type: 'module' });
   W.worker.onmessage = onWorkerMessage;
   W.worker.onerror = ev => loaderMsg('The engine failed to start', esc(ev.message || 'worker error'), true);
+  const spec = page.initialModel ? page.initialModel() : defaultModel(page.kind);
+  if (spec) await loadModel(spec);
+  else $('loader').style.display = 'none';
+}
+
+export async function loadModel(spec) {
+  if (!spec.wsrc || /[<>]/.test(spec.wsrc)) {
+    loaderMsg('Weights location not configured', 'Set <b>WEIGHTS_BASE</b> for this model in <code>config.js</code> to ' +
+      'the model folder URL (e.g. the Hugging Face <code>resolve/main/</code> URL).', true);
+    throw new Error('WEIGHTS_BASE not configured');
+  }
+  const wbase = new URL(spec.wsrc, SITE).href;
+  ST.ready = false;
+  const brain = spec.region ? 'the fly\'s ' + spec.region.name.toLowerCase() : 'the fly\'s brain';
+  loaderMsg('Loading ' + brain + '…', 'Downloading the trained connectome weights. Everything runs locally in this tab.', false);
+  $('ldBar').style.width = '0%'; $('ldP').textContent = 'starting…';
   const t0 = performance.now();
   let r;
   try {
-    r = await rpc('init', { base: SITE.href, wbase, variant, kind: page.kind }, m => {
+    r = await rpc('init', { base: SITE.href, wbase, variant: spec.variant, kind: PAGE.kind }, m => {
       if (m.type !== 'progress') return;
       $('ldBar').style.width = (100 * m.done / Math.max(1, m.total)).toFixed(1) + '%';
       $('ldP').textContent = MB(m.done) + ' / ' + MB(m.total) + ' MB  ·  ' + m.file;
     });
   } catch (e) {
-    loaderMsg('Could not load the fly\'s brain', esc(e.message), true); throw e;
+    loaderMsg('Could not load ' + brain, esc(e.message), true); throw e;
   }
   const d = r.info;
-  ST.info = d;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (_) {}
+  ST.info = d; ST.model = spec; REGION = spec.region; ST.cache = r.cache;
+  ST.fw = r.manifest.fast_weight !== false;
+  if (!ST.fw) ST.memory = false;
+  if (spec.note) NOTE = spec.note;
+  SKEL = null; PROJ = null; PSTART = null; ATLAS = null; SOMA = null;
+  ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
+  renderPanels();
   $('loader').style.display = 'none';
   const g = d.groups || {}, man = r.manifest, audit = man.connectome_audit || {}, val = man.validation || {}, sc = r.selfcheck;
   const ok = v => v ? '<span class="ok">PASS</span>' : '<span class="warn">FAIL</span>';
-  $('facts').innerHTML = [
-    ['connectome', 'MaleCNS v1.0 mushroom body (CC-BY-4.0)'],
-    ['neurons', d.H + '  (KC ' + g.KC + ' · MBON ' + g.MBON + ' · DAN ' + g.DAN + ' · APL ' + g.APL + ' · other ' + g.other + ')'],
+  const rows = [
+    ['connectome', 'MaleCNS v1.0 ' + (d.region ? esc(d.region.name.toLowerCase()) : 'mushroom body') + ' (CC-BY-4.0)'],
+    ['neurons', d.H + '  (' + d.class_names.map(n => esc(n) + ' ' + g[n]).join(' · ') + ')'],
     ['neuron-to-neuron connections', Number(d.edges).toLocaleString()],
     ['Dale signs', 'E ' + d.sign.E + ' / I ' + d.sign.I + ' / modulatory ' + d.sign.mod],
     ['hemispheres', d.nL + ' L / ' + d.nR + ' R'],
     ['cross-midline edges', d.cross ? Number(d.cross.cross).toLocaleString() + ' (' + (100 * d.cross.frac).toFixed(1) + '%)' : '—'],
     ['soma coordinates', d.atlas ? d.atlas.n_real + ' measured, ' + d.atlas.n_filled + ' imputed' : 'unavailable'],
     ['run mode', 'RSNN (one timestep per move, state carried, no reset) · in this browser tab'],
+  ];
+  if (d.region) rows.push(['input → readout', d.region.n_in + ' ' + esc(d.region.input) + ' → ' + d.region.n_out + ' ' +
+    esc(d.region.output) + ' (no dopamine gate)']);
+  rows.push(
     ['synaptic weights', 'trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode'],
-    ['move vocabulary', page.vocabText(d.vocab)],
+    ['move vocabulary', PAGE.vocabText(d.vocab)],
     ['trained parameters', (d.params / 1e6).toFixed(2) + ' M'],
-    ['model', esc(man.label)],
-    ['weights in this page', esc(r.variant) + ' · ' + MB(r.download_bytes) + ' MB downloaded'],
+    ['model', esc(man.label) + (PAGE.modelNote && PAGE.modelNote() ? ' — ' + esc(PAGE.modelNote()) : '')],
+    ['weights in this page', esc(r.variant) + ' · ' + MB(r.download_bytes) + ' MB ' +
+       (r.cache && r.cache.from_network_bytes === 0 ? 'loaded from this browser\'s storage' :
+        r.cache && r.cache.from_cache_bytes > 0 ? 'loaded (' + MB(r.cache.from_network_bytes) + ' MB downloaded, the rest from this browser\'s storage)' :
+        'downloaded' + (r.cache && r.cache.available ? ', kept in this browser for next time' : ''))],
     ['recurrent weights', Number(audit.nonzero_weights || 0).toLocaleString() + ' nonzero, ' +
        Number(audit.off_connectome || 0).toLocaleString() + ' off the connectome'],
     ['Dale check', Number(audit.wrong_sign || 0).toLocaleString() + ' wrong-sign weights'],
@@ -718,30 +814,32 @@ export async function start(page) {
     ['load-time self-check', sc ? ok(sc.legal_top1_agree === sc.plies) + ' — legal top-1 ' + sc.legal_top1_agree + '/' + sc.plies +
        ' plies, max |Δlogit| ' + sc.max_abs_logit_diff.toExponential(1) : '—'],
     ['engine load', ((performance.now() - t0) / 1000).toFixed(1) + ' s'],
-  ].map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  );
+  $('facts').innerHTML = rows.map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   $('footck').textContent = ' Model: ' + man.label + ' (' + r.variant + ' weights).';
   let st = null;
-  try { const rs = await fetch(new URL('data/strength_' + page.kind + '.json', SITE)); if (rs.ok) st = await rs.json(); } catch (_) {}
-  const cv = page.caveat(st);
+  try { const rs = await fetch(new URL('data/strength_' + PAGE.kind + '.json', SITE)); if (rs.ok) st = await rs.json(); } catch (_) {}
+  const cv = PAGE.caveat(st, REGION);
   $('caveat').innerHTML = cv.html;
   if (cv.row) {
     const tb = $('facts'), tr = document.createElement('tr');
     tr.innerHTML = '<td>strength</td><td>' + cv.row + '</td>';
-    tb.insertBefore(tr, tb.children[11] || null);
+    const modelRow = [...tb.children].find(x => x.firstChild && x.firstChild.textContent === 'model');
+    tb.insertBefore(tr, modelRow || null);
   }
   $('hdL').textContent = d.nL; $('hdR').textContent = d.nR;
-  $('cKC').textContent = g.KC; $('cMBON').textContent = g.MBON;
-  $('cDAN').textContent = g.DAN; $('cAPL').textContent = g.APL; $('danTot').textContent = g.DAN;
+  for (const [id, n] of [['cKC', 'KC'], ['cMBON', 'MBON'], ['cDAN', 'DAN'], ['cAPL', 'APL'], ['danTot', 'DAN']])
+    if ($(id)) $(id).textContent = g[n];
   if (d.cross) {
     $('mCross').textContent = (100 * d.cross.frac).toFixed(1) + '%';
     $('mCrossS').textContent = Number(d.cross.cross).toLocaleString() + ' of ' + Number(d.cross.edges).toLocaleString();
     $('mRL').textContent = Number(d.cross.R_to_L).toLocaleString() + ' / ' + Number(d.cross.L_to_R).toLocaleString();
-    $('crossn').textContent = Number(d.cross.cross).toLocaleString();
+    if ($('crossn')) $('crossn').textContent = Number(d.cross.cross).toLocaleString();
     $('crosstxt').innerHTML = 'Bilateral: <b>' + d.nL + ' left / ' + d.nR + ' right</b>, and <b>' +
-      (100 * d.cross.frac).toFixed(1) + '%</b> of edges cross the midline — the two sides are not ' +
-      'independent copies.';
+      (100 * d.cross.frac).toFixed(1) + '%</b> of ' + (d.region && d.cross.edges < d.edges ? 'edges between neurons of known side' : 'edges') +
+      ' cross the midline — the two sides are not independent copies.';
   }
-  await loadSkeletons();
+  await loadSkeletons(spec.skel || 'data/mb_skel.json');
   if (SKEL) {
     const c = SKEL.counts || {};
     const tot = Object.values(c).reduce((a, v) => a + (v.have || 0), 0);
@@ -755,8 +853,9 @@ export async function start(page) {
     $('atlasnote').textContent = 'Skeletons could not be loaded — falling back to measured soma positions ' +
       '(one dot per neuron).';
   }
-  fitBoard(); page.render();
+  fitBoard(); PAGE.render();
   buildAtlas();
+  return r;
 }
 
 export async function newSession() {
@@ -765,13 +864,21 @@ export async function newSession() {
   ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
   $('cands').innerHTML = ''; $('flyline').textContent = '';
   $('scrub').max = 0; $('scrub').value = 0; $('scrublb').textContent = 'live';
-  ['mRate', 'mOvP', 'mOv1', 'mMs', 'danN'].forEach(i => $(i).textContent = '—');
-  ['hL', 'hR', 'hL2', 'hR2', 'hL3', 'hR3', 'hL4', 'hR4'].forEach(i => $(i).style.width = '0');
+  ['mRate', 'mOvP', 'mOv1', 'mMs', 'danN'].forEach(i => { if ($(i)) $(i).textContent = '—'; });
+  document.querySelectorAll('.hemi .hb i').forEach(el => { el.style.width = '0'; });
   drawAtlas(null, null);
   const j = await rpc('new', {});
   ST.ready = true;
   if (j.brain && j.brain.entry) ST.hist = [j.brain.entry];
   return j;
+}
+
+export async function syncBrain(moves) {
+  await rpc('sync', { moves }, ev => {
+    if (ev.ev === 'step') onStep(ev);
+    else if (ev.ev === 'synced') ST.hist = ev.hist || [];
+  });
+  drawGameCharts();
 }
 
 export async function think() {

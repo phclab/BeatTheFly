@@ -64,18 +64,22 @@ export class FlyRSNN {
     const S = manifest.scalars;
     this.S = S;
     this.H = S.H;
-    this.nkc = S.n_kc; this.nmb = S.n_mbon; this.ndan = S.n_dan;
+    this.fw = (S.mode || 'dan') === 'dan';
     Object.assign(this, {
       encTok: T.enc_tok_T, encTokB: T.enc_tok_b, lnTokW: T.ln_tok_w, lnTokB: T.ln_tok_b,
       encBrd: T.enc_brd_T, encBrdB: T.enc_brd_b, lnBrdW: T.ln_brd_w, lnBrdB: T.ln_brd_b,
-      v2d: T.v2d_T, v2dB: T.v2d_b, dec: T.dec_w, decB: T.dec_b,
-      Wg: T.Wg, Wdv: T.W_dan_val,
+      dec: T.dec_w, decB: T.dec_b,
       aExc: T.alpha_exc, aInh: T.alpha_inh, vth: T.v_th, rst: T.reset_weight,
-      kc: T.kc_idx, mbon: T.mbon_idx, dan: T.dan_idx,
+      inp: T.in_idx || T.kc_idx, outIdx: T.out_idx || null,
       cp: T.W_colptr, ri: T.W_rowidx, wv: T.W_vals,
     });
+    if (this.fw) {
+      this.nkc = S.n_kc; this.nmb = S.n_mbon; this.ndan = S.n_dan;
+      Object.assign(this, { v2d: T.v2d_T, v2dB: T.v2d_b, Wg: T.Wg, Wdv: T.W_dan_val,
+                            kc: T.kc_idx, mbon: T.mbon_idx, dan: T.dan_idx });
+    }
     const H = this.H;
-    this.kcMask = new Uint8Array(H); for (const i of this.kc) this.kcMask[i] = 1;
+    this.inMask = new Uint8Array(H); for (const i of this.inp) this.inMask[i] = 1;
     this._x = new Float64Array(H); this._tokh = new Float32Array(H); this._brdh = new Float32Array(H);
     this._drive = new Float32Array(H); this._syn = new Float64Array(H);
     this.Vfinal = new Float32Array(H); this.Vaug = new Float32Array(H);
@@ -86,7 +90,7 @@ export class FlyRSNN {
     const H = this.H;
     this.Vf = new Float32Array(H); this.Vres = new Float32Array(H);
     this.spk = new Uint8Array(H);
-    this.M = new Float32Array(this.nkc * this.nmb);
+    this.M = this.fw ? new Float32Array(this.nkc * this.nmb) : null;
   }
 
   _ln(x, w, b, out) {
@@ -111,12 +115,14 @@ export class FlyRSNN {
     const drive = this._drive, ut = S.use_tok, ub = S.use_board, da = S.drive_alpha;
     for (let i = 0; i < H; i++) {
       const emb = f(f(ut * this._tokh[i]) + f(ub * this._brdh[i]));
-      drive[i] = f(da * (this.kcMask[i] ? Math.abs(emb) : 0));
+      drive[i] = f(da * (this.inMask[i] ? Math.abs(emb) : 0));
     }
-    const vo = tok * this.ndan;
-    for (let d = 0; d < this.ndan; d++) {
-      const i = this.dan[d];
-      drive[i] = f(drive[i] + f(S.dan_teach * Math.abs(f(this.v2d[vo + d] + this.v2dB[d]))));
+    if (this.fw) {
+      const vo = tok * this.ndan;
+      for (let d = 0; d < this.ndan; d++) {
+        const i = this.dan[d];
+        drive[i] = f(drive[i] + f(S.dan_teach * Math.abs(f(this.v2d[vo + d] + this.v2dB[d]))));
+      }
     }
 
     const prev = this.spk, syn = this._syn;
@@ -126,12 +132,14 @@ export class FlyRSNN {
       if (!prev[j]) continue;
       for (let k = cp[j], e = cp[j + 1]; k < e; k++) syn[ri[k]] += wv[k];
     }
-    const nmb = this.nmb, ndan = this.ndan;
-    for (let m = 0; m < nmb; m++) {
-      let g = 0; const o = m * ndan;
-      for (let d = 0; d < ndan; d++) if (prev[this.dan[d]]) g += this.Wg[o + d];
-      const i = this.mbon[m];
-      syn[i] = f(f(syn[i]) * f(1 / (1 + Math.exp(-f(g)))));
+    if (this.fw) {
+      const nmb = this.nmb, ndan = this.ndan;
+      for (let m = 0; m < nmb; m++) {
+        let g = 0; const o = m * ndan;
+        for (let d = 0; d < ndan; d++) if (prev[this.dan[d]]) g += this.Wg[o + d];
+        const i = this.mbon[m];
+        syn[i] = f(f(syn[i]) * f(1 / (1 + Math.exp(-f(g)))));
+      }
     }
 
     const Vf = this.Vf, Vres = this.Vres, Vfinal = this.Vfinal, ecl = S.e_cl;
@@ -149,38 +157,53 @@ export class FlyRSNN {
     }
 
     const Vaug = this.Vaug; Vaug.set(Vfinal);
-    const M = this.M, nkc = this.nkc, kc = this.kc;
-    const r = new Float64Array(nmb);
-    for (let q = 0; q < nkc; q++) {
-      if (!out[kc[q]]) continue;
-      const o = q * nmb;
-      for (let m = 0; m < nmb; m++) r[m] += M[o + m];
+    if (this.fw) {
+      const M = this.M, nkc = this.nkc, kc = this.kc, nmb = this.nmb;
+      const r = new Float64Array(nmb);
+      for (let q = 0; q < nkc; q++) {
+        if (!out[kc[q]]) continue;
+        const o = q * nmb;
+        for (let m = 0; m < nmb; m++) r[m] += M[o + m];
+      }
+      for (let m = 0; m < nmb; m++) { const i = this.mbon[m]; Vaug[i] = f(Vaug[i] + f(S.lam * f(r[m]))); }
     }
-    for (let m = 0; m < nmb; m++) { const i = this.mbon[m]; Vaug[i] = f(Vaug[i] + f(S.lam * f(r[m]))); }
 
     let logits = null;
     if (opts.logits) {
       const ids = opts.logits, n = ids.length;
       logits = new Float32Array(n);
-      const dec = this.dec;
-      for (let k = 0; k < n; k++) {
-        const v = ids[k], o = v * H;
-        let s = 0;
-        for (let i = 0; i < H; i++) s += dec[o + i] * Vaug[i];
-        logits[k] = f(f(s) + this.decB[v]);
+      const dec = this.dec, pop = this.outIdx;
+      if (pop) {
+        const np = pop.length;
+        for (let k = 0; k < n; k++) {
+          const v = ids[k], o = v * np;
+          let s = 0;
+          for (let i = 0; i < np; i++) s += dec[o + i] * Vaug[pop[i]];
+          logits[k] = f(f(s) + this.decB[v]);
+        }
+      } else {
+        for (let k = 0; k < n; k++) {
+          const v = ids[k], o = v * H;
+          let s = 0;
+          for (let i = 0; i < H; i++) s += dec[o + i] * Vaug[i];
+          logits[k] = f(f(s) + this.decB[v]);
+        }
       }
     }
 
-    const gv = new Float32Array(nmb);
-    for (let m = 0; m < nmb; m++) {
-      let g = 0, v = 0; const o = m * ndan;
-      for (let d = 0; d < ndan; d++) if (out[this.dan[d]]) { g += this.Wg[o + d]; v += this.Wdv[o + d]; }
-      gv[m] = f(f(1 / (1 + Math.exp(-f(g)))) * f(Math.tanh(f(v))));
-    }
-    for (let q = 0; q < nkc; q++) {
-      if (!prev[kc[q]]) continue;
-      const o = q * nmb;
-      for (let m = 0; m < nmb; m++) M[o + m] = f(M[o + m] + gv[m]);
+    if (this.fw) {
+      const M = this.M, nkc = this.nkc, kc = this.kc, nmb = this.nmb, ndan = this.ndan;
+      const gv = new Float32Array(nmb);
+      for (let m = 0; m < nmb; m++) {
+        let g = 0, v = 0; const o = m * ndan;
+        for (let d = 0; d < ndan; d++) if (out[this.dan[d]]) { g += this.Wg[o + d]; v += this.Wdv[o + d]; }
+        gv[m] = f(f(1 / (1 + Math.exp(-f(g)))) * f(Math.tanh(f(v))));
+      }
+      for (let q = 0; q < nkc; q++) {
+        if (!prev[kc[q]]) continue;
+        const o = q * nmb;
+        for (let m = 0; m < nmb; m++) M[o + m] = f(M[o + m] + gv[m]);
+      }
     }
 
     this.spk = out;

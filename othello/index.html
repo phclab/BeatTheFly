@@ -69,7 +69,9 @@
   <div id="colNotes">
     <div class="card">
       <h2>What you are playing</h2>
-      <div class="note"><p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
+      <div class="note"><p>The mushroom body is the fly's <b>learning and memory center</b>: in the real fly it learns which
+  odors and cues predict reward or danger, a pattern → value judgment.</p>
+  <p>Every move is computed by a spiking network wired from the <b>real MaleCNS mushroom-body
   connectome</b> — 4,510 measured neurons, 1,027,152 neuron-to-neuron connections, excitatory/inhibitory signs from
   neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma
   positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries
@@ -297,6 +299,7 @@ $('undo').onclick = () => {
 
 start({
   kind: 'othello',
+  modelNote: () => 'learning & memory: pattern → value',
   render: () => render(),
   sync: () => render(),
   renderStatus,

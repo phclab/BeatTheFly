@@ -1,0 +1,91 @@
+{
+ "regions": [
+  {
+   "id": "mb",
+   "name": "Mushroom Body",
+   "desc": "learning & memory: pattern → value",
+   "tagline": "the fly's learning and memory center",
+   "about": "In the real fly, the mushroom body learns associations: which odors and cues predict reward or danger. About 2,000 Kenyon cells per side encode each pattern sparsely, and dopamine neurons teach the mushroom body output neurons what each pattern is worth. That kind of pattern → value judgment is closest to what a chess move needs, so we expect it to be the strongest player.",
+   "label": "MushroomBody_Chess v2",
+   "strength": "≈1110 Elo (vs Stockfish anchors)",
+   "skel": "data/mb_skel.json",
+   "thumb": "data/thumb_mb.svg",
+   "model": "MushroomBody_Chess",
+   "version": "v2",
+   "size_mb": 49.5
+  },
+  {
+   "id": "al",
+   "name": "Antennal Lobe",
+   "desc": "first smell relay: sorts odors",
+   "tagline": "the first smell relay",
+   "about": "In the real fly, the antennal lobe is the first stop for smell. It sorts signals from the olfactory receptor neurons into glomeruli (one channel per odor-receptor type) and passes them on to the mushroom body and lateral horn. It filters sensory input rather than making decisions.",
+   "label": "AntennalLobe_Chess v1",
+   "strength": "Beats a random mover (71–123–6); loses to a simple material-greedy bot (1–31–168) and to Stockfish at its lowest level.",
+   "skel": "data/skel_al.json",
+   "thumb": "data/thumb_al.svg",
+   "model": "AntennalLobe_Chess",
+   "version": "v1",
+   "size_mb": 26.4,
+   "intro": "<p>The <b>antennal lobe</b> is the first relay of the fly's sense of smell. Its cells fall into three classes, all drawn on the atlas:</p>",
+   "note": "<p>In a real <i>Drosophila</i> receptor neurons from the antenna sort odours into glomeruli, local neurons mix and normalise them, and projection neurons send the result on. Here the same wiring is fed chess: the 789 board features and the move history drive the receptor neurons, activity spreads one timestep per move, and the move is read from the voltage of the 700 projection neurons only. There is no dopamine gate. The state is carried and never reset.</p>",
+   "rate_note": "The receptor neurons are driven by the game every timestep; the move is read from the projection neurons only.",
+   "cells": [
+    {
+     "cls": "receptor",
+     "title": "Receptor neurons (ORN, TRN, HRN)",
+     "desc": "Olfactory, thermo- and hygrosensory neurons from the antenna. Here they receive the chess input."
+    },
+    {
+     "cls": "PN",
+     "title": "Projection neurons",
+     "desc": "Carry the glomerular code on to the mushroom body and lateral horn. The move readout sees only their membrane voltage."
+    },
+    {
+     "cls": "LN",
+     "title": "Local and interneurons",
+     "desc": "Mostly inhibitory local neurons that shape and normalise the code across glomeruli."
+    }
+   ]
+  },
+  {
+   "id": "cx",
+   "name": "Central Complex",
+   "desc": "compass & steering",
+   "tagline": "the fly's compass and steering center",
+   "about": "In the real fly, the central complex keeps track of heading with a ring-shaped “internal compass”, integrates the path travelled, and steers where the fly goes next.",
+   "label": "CentralComplex_Chess v1",
+   "strength": "Plays about as well as a random mover (30–148–22 against random legal moves); loses to a simple material-greedy bot (0–19–181) and to Stockfish at its lowest level.",
+   "skel": "data/skel_cx.json",
+   "thumb": "data/thumb_cx.svg",
+   "model": "CentralComplex_Chess",
+   "version": "v1",
+   "size_mb": 18.6,
+   "intro": "<p>The <b>central complex</b> is the fly's navigation centre: it holds a compass-like heading signal and turns it into steering commands. Its cells are drawn on the atlas in four classes:</p>",
+   "note": "<p>In a real <i>Drosophila</i> this circuit tracks heading and steers. Here the same wiring is fed chess: the 789 board features and the move history drive the ring (ER, ExR) and PFN input neurons, activity spreads through the circuit one timestep per move, and the move is read from the voltage of the 50 PFL output neurons only. There is no dopamine gate: that belongs to the mushroom body. The state is carried and never reset.</p>",
+   "rate_note": "The input classes are driven by the game every timestep; the move is read from the PFL output neurons only.",
+   "cells": [
+    {
+     "cls": "ER/ExR",
+     "title": "Ring neurons (ER, ExR)",
+     "desc": "Carry landmark and visual cues into the ellipsoid body. Here they receive the chess input."
+    },
+    {
+     "cls": "PFN",
+     "title": "PFN columnar neurons",
+     "desc": "Bring self-motion signals through the noduli into the fan-shaped body. Also driven by the chess input."
+    },
+    {
+     "cls": "PFL",
+     "title": "PFL output neurons",
+     "desc": "Steering outputs towards the lateral accessory lobe. The move readout sees only their membrane voltage."
+    },
+    {
+     "cls": "other",
+     "title": "Other central-complex neurons",
+     "desc": "EPG heading cells, PEN, PEG, Delta and fan-shaped-body neurons: the circuit between input and output."
+    }
+   ]
+  }
+ ]
+}
