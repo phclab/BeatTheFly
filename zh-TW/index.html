@@ -1,0 +1,68 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly：和一隻聰明的果蠅下棋</title>
+<meta name="description" content="BeatTheFly：和一隻聰明的果蠅下西洋棋或黑白棋。以真實果蠅（Drosophila）蘑菇體連結體（MaleCNS）接線的脈衝神經網路，直接在你的瀏覽器中執行。">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/zh-TW/">
+<link rel="alternate" hreflang="en" href="https://phclab.github.io/BeatTheFly/">
+<link rel="alternate" hreflang="zh-Hant-TW" href="https://phclab.github.io/BeatTheFly/zh-TW/">
+<link rel="alternate" hreflang="x-default" href="https://phclab.github.io/BeatTheFly/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:title" content="BeatTheFly：和一隻聰明的果蠅下棋">
+<meta property="og:description" content="BeatTheFly：和一隻聰明的果蠅下西洋棋或黑白棋。以真實果蠅（Drosophila）蘑菇體連結體（MaleCNS）接線的脈衝神經網路，直接在你的瀏覽器中執行。">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/zh-TW/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../ui/app.css">
+</head>
+<body>
+<header>
+  <nav class="langs" aria-label="語言"><a href="../" data-lang="en" hreflang="en">English</a> / <a href="./" data-lang="zh-TW" hreflang="zh-Hant-TW" lang="zh-Hant-TW" aria-current="page">正體中文</a></nav>
+  <h1 id="title">BeatTheFly</h1>
+  <div class="attrib">接線：真實果蠅腦（<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS 蘑菇體連結體</a>，<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>）<span class="sep">·</span> 突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署</div>
+  <div class="claim">解剖連結體只給你接線，不給你突觸強度。我們的突觸強度是訓練出來的。<span class="claim-en" lang="en">The anatomical connectome gives you wiring, not synaptic strengths. Ours are trained.</span></div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+
+<div class="chooser">
+  <a class="gamecard" href="chess/">
+    <div class="pic chess"></div>
+    <h2>西洋棋</h2>
+    <div class="tl">一隻聰明的果蠅正在和你下西洋棋</div>
+    <div class="d" id="chessInfo">一個依果蠅蘑菇體接線的脈衝神經網路在下西洋棋，每一步棋走一個時間步。你也可以選擇不同的果蠅腦區當對手：蘑菇體、中央複合體或觸角葉。</div>
+    <span class="go">下西洋棋 →</span>
+  </a>
+  <a class="gamecard" href="othello/">
+    <div class="pic oth"><i class="disc w" style="left:35%;top:22%"></i><i class="disc b" style="left:50%;top:22%"></i>
+      <i class="disc b" style="left:35%;top:52%"></i><i class="disc w" style="left:50%;top:52%"></i></div>
+    <h2>黑白棋</h2>
+    <div class="tl">一隻聰明的果蠅正在和你下黑白棋</div>
+    <div class="d" id="othelloInfo">同一套蘑菇體接線，配上另外訓練的突觸權重來下黑白棋。</div>
+    <span class="go">下黑白棋 →</span>
+  </a>
+</div>
+
+<footer>
+  <span><b>資料來源與授權。</b>連結體、神經傳導物質標註、細胞體座標與神經元骨架：<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a>（雄性<i>黑腹果蠅</i>中樞神經系統，Janelia FlyEM 及合作者），依 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a> 授權使用。突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署。<span class="byline">made by Po-Han Chiang @ NYCU</span>。</span>
+</footer>
+
+<script type="module">
+import { t, dataFile, SITE } from '../ui/i18n.js';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function strength(kind) {
+  try { const r = await fetch(new URL(dataFile('data/strength_' + kind + '.json'), SITE)); return r.ok ? await r.json() : null; } catch (_) { return null; }
+}
+strength('chess').then(st => {
+  if (st && st.elo_text) document.getElementById('chessInfo').insertAdjacentHTML('beforeend', ' <b>' + t('Strength:') + '</b> ' + esc(st.elo_text) + t('.'));
+});
+strength('othello').then(st => {
+  if (st && st.strength_text) document.getElementById('othelloInfo').insertAdjacentHTML('beforeend', ' <b>' + t('Strength:') + '</b> ' + esc(st.strength_text));
+});
+</script>
+</body>
+</html>

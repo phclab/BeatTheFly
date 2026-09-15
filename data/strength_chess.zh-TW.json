@@ -1,0 +1,15 @@
+{
+ "elo": 1110,
+ "elo_ci95": 39,
+ "elo_text": "約 1110 Elo（95% 信賴區間 ±39），以 Stockfish UCI_Elo 為錨點、CCRL 閃電棋尺度，800 盤，取最高分走法",
+ "vs_previous_text": "在相同開局上比 v1 高出 139 Elo（95% 信賴區間 +75 至 +211）",
+ "test_label": "4,000 盤保留的 Lichess 對局（雙方等級分 2200 以上）",
+ "sf_agreement": 0.447,
+ "sf_opening": 0.928,
+ "sf_early_mid": 0.602,
+ "sf_middlegame": 0.382,
+ "sf_endgame": 0.314,
+ "human_move_match": 0.391,
+ "blitz_move_match": 0.364,
+ "blitz_label": "保留的 Lichess 閃電棋對局（1500–1800）"
+}

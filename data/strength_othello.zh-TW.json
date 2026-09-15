@@ -1,0 +1,5 @@
+{
+ "strength_text": "約有 80–86% 的機率擊敗簡單的貪婪程式與搶角程式；對等級 1 的 Edax 引擎大約拿下三分之一的分數（100 盤中 32–1–67）。",
+ "match_note": "每個對手 100 盤，雙方輪流執黑執白",
+ "eval_md": "Agreement with the engine's move on 10,570 held-out Egaroucid games (legal moves only): 50.1% overall (moves 1–15 43.4%, 16–30 38.6%, 31–45 39.6%, 46+ 61.2%)."
+}

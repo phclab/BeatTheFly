@@ -4,6 +4,7 @@ export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': 
 export const MB = n => (n / 1e6).toFixed(1);
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 export const SITE = new URL('../', import.meta.url);
+import { t, dataFile } from './i18n.js';
 const CLR = { KC: [79, 209, 197], MBON: [122, 162, 255], DAN: [255, 122, 182], APL: [197, 140, 255], other: [152, 166, 189] };
 const DIM = { KC: 0.016, MBON: 0.055, DAN: 0.045, APL: 0.11, other: 0.045 };
 const LW = { KC: 0.45, MBON: 0.60, DAN: 0.55, APL: 0.70, other: 0.55 };
@@ -41,17 +42,15 @@ function hemiClasses() {
   return ST.info ? panelClasses().filter(hasSides).slice(0, 3) : ['KC', 'MBON', 'DAN'];
 }
 
-const MB_LEGEND = `<span><span class="dot" style="background:var(--kc)"></span>Kenyon cell</span>
-    <span><span class="dot" style="background:var(--mbon)"></span>MBON</span>
-    <span><span class="dot" style="background:var(--dan)"></span>DAN</span>
-    <span><span class="dot" style="background:var(--apl)"></span>APL</span>
-    <span><span class="dot" style="background:var(--oth)"></span>other MB</span>`;
+const mbLegend = () => [['--kc', 'Kenyon cell'], ['--mbon', 'MBON'], ['--dan', 'DAN'], ['--apl', 'APL'], ['--oth', 'other MB']]
+  .map(([v, n]) => `<span><span class="dot" style="background:var(${v})"></span>${t(n, null, 'legend')}</span>`).join('\n    ');
+const cname = n => t(n, null, 'class');
 
-const DAN_CARD = `<div class="card">
-    <h2>Dopamine gate — the write</h2>
+const danCard = () => `<div class="card">
+    <h2>${t('Dopamine gate — the write')}</h2>
     <div class="lamp">
       <div class="bulb" id="bulb"></div>
-      <div class="t"><b id="danN">—</b>of <span id="danTot">340</span> DANs spiking this timestep</div>
+      <div class="t">${t('{n}of {total} DANs spiking this timestep', { n: '<b id="danN">—</b>', total: '<span id="danTot">340</span>' })}</div>
     </div>
     <svg class="mech" id="mech" viewBox="0 0 300 96" preserveAspectRatio="xMidYMid meet">
       <rect class="box" x="6" y="40" width="66" height="30" rx="6"/>
@@ -64,138 +63,129 @@ const DAN_CARD = `<div class="card">
       <text x="150" y="21" text-anchor="middle" fill="#ff7ab6">DAN</text>
       <path class="gate" d="M150 30 L150 48"/>
       <circle class="gate" cx="150" cy="55" r="7"/>
-      <text x="150" y="84" text-anchor="middle">gate × fast-weight write</text>
+      <text x="150" y="84" text-anchor="middle">${t('gate × fast-weight write')}</text>
     </svg>
-    <div class="legend"><span>When DANs spike they multiplicatively gate the KC→MBON current and drive
-      the fast-weight write — the fly's real three-factor plasticity rule, running inside the game.</span></div>
+    <div class="legend"><span>${t('When DANs spike they multiplicatively gate the KC→MBON current and drive the fast-weight write — the fly\'s real three-factor plasticity rule, running inside the game.')}</span></div>
   </div>`;
 
-const MB_RATE_NOTE = `KC stays <b>sparse</b> — that is the point of an expansion layer, and APL's
-    global inhibition is what enforces it. MBON is a small population so its rate is coarse; APL is
-    one neuron per hemisphere, so it reads 0%, 50% or 100%.`;
+const mbRateNote = () => t('KC stays <b>sparse</b> — that is the point of an expansion layer, and APL\'s global inhibition is what enforces it. ' +
+  'MBON is a small population so its rate is coarse; APL is one neuron per hemisphere, so it reads 0%, 50% or 100%.');
 
 function panelsSide() {
   const mb = isMB();
-  const legend = mb ? MB_LEGEND : ST.info.class_names.map(n =>
-    `<span><span class="dot" style="background:${rgb(n)}"></span>${esc((ST.info.class_labels || {})[n] || n)}</span>`).join('\n    ');
+  const legend = mb ? mbLegend() : ST.info.class_names.map(n =>
+    `<span><span class="dot" style="background:${rgb(n)}"></span>${esc(t((ST.info.class_labels || {})[n] || n))}</span>`).join('\n    ');
   const hemiRows = hemiClasses().map((n, k) =>
-    `<div class="hemi"><div class="hb L"><i id="hb${k}L"></i></div><div class="mid">${esc(n)}</div><div class="hb R"><i id="hb${k}R"></i></div></div>`).join('\n    ') +
-    `\n    <div class="hemi"><div class="hb L"><i id="hbAL"></i></div><div class="mid">all</div><div class="hb R"><i id="hbAR"></i></div></div>`;
+    `<div class="hemi"><div class="hb L"><i id="hb${k}L"></i></div><div class="mid">${esc(cname(n))}</div><div class="hb R"><i id="hb${k}R"></i></div></div>`).join('\n    ') +
+    `\n    <div class="hemi"><div class="hb L"><i id="hbAL"></i></div><div class="mid">${cname('all')}</div><div class="hb R"><i id="hbAR"></i></div></div>`;
   const hemiCard = `<div class="card">
-    <h2>Hemispheres</h2>
+    <h2>${t('Hemispheres')}</h2>
     ${hemiRows}
-    <div class="legend" style="margin-top:13px"><span id="crosstxt">The connectome is bilateral, with
-      edges crossing the midline in both directions.</span></div>
+    <div class="legend" style="margin-top:13px"><span id="crosstxt">${t('The connectome is bilateral, with edges crossing the midline in both directions.')}</span></div>
     <div class="grid2" style="margin-top:10px">
-      <div class="metric"><div class="k">cross-midline edges</div><div class="v" id="mCross">—</div>
+      <div class="metric"><div class="k">${t('cross-midline edges')}</div><div class="v" id="mCross">—</div>
         <div class="s" id="mCrossS"></div></div>
-      <div class="metric"><div class="k">R→L / L→R</div><div class="v" id="mRL">—</div>
-        <div class="s">measured, not modelled</div></div>
+      <div class="metric"><div class="k">${t('R→L / L→R')}</div><div class="v" id="mRL">—</div>
+        <div class="s">${t('measured, not modelled')}</div></div>
     </div>
   </div>`;
-  const rateNote = mb ? MB_RATE_NOTE : esc((REGION && REGION.rate_note) || '');
+  const rateNote = mb ? mbRateNote() : esc((REGION && REGION.rate_note) || '');
+  const title = t('{name} atlas', { name: mb ? t('Mushroom body') : esc(t(ST.info.region.name)) });
   return `
 <div class="card hero">
-  <h2>${mb ? 'Mushroom body' : esc(ST.info.region.name)} atlas <span class="sm" id="atlasrc">measured soma coordinates</span></h2>
+  <h2>${title} <span class="sm" id="atlasrc">${t('measured soma coordinates')}</span></h2>
   <div class="row" style="margin-bottom:10px">
-    <button id="vFront" class="sm${ST.proj === 'frontal' ? ' on' : ''}">Frontal view</button>
-    <button id="vDors" class="sm${ST.proj === 'dorsal' ? ' on' : ''}">Dorsal view</button>
+    <button id="vFront" class="sm${ST.proj === 'frontal' ? ' on' : ''}">${t('Frontal view')}</button>
+    <button id="vDors" class="sm${ST.proj === 'dorsal' ? ' on' : ''}">${t('Dorsal view')}</button>
     <span style="flex:1"></span>${ST.fw ? `
-    <button id="vMem" class="sm${ST.memory ? ' on' : ''}">Memory overlay: ${ST.memory ? 'on' : 'off'}</button>` : ''}
+    <button id="vMem" class="sm${ST.memory ? ' on' : ''}">${ST.memory ? t('Memory overlay: on') : t('Memory overlay: off')}</button>` : ''}
   </div>
   <div id="atlaswrap"><canvas id="atlas"></canvas></div>
   <div class="alab">
-    <div>◀ <b>left hemisphere</b> <span id="hdL">2241</span> neurons</div>
-    <div><span id="hdR">2269</span> neurons <b>right hemisphere</b> ▶</div>
+    <div>${t('◀ <b>left hemisphere</b> {n} neurons', { n: '<span id="hdL">2241</span>' })}</div>
+    <div>${t('{n} neurons <b>right hemisphere</b> ▶', { n: '<span id="hdR">2269</span>' })}</div>
   </div>
   <div class="legend">
     ${legend}
-    <span id="atlasnote">Dim = silent, bright = spiking on this timestep.</span>
+    <span id="atlasnote">${t('Dim = silent, bright = spiking on this timestep.')}</span>
   </div>
   <div class="legend" style="margin-top:4px"><span class="small" id="skelsrc"></span>
-    <span class="small">every line is a traced neurite; firing changes brightness, never thickness</span>
-    <span class="small">atlas redraw <b id="mDraw">—</b></span></div>
+    <span class="small">${t('every line is a traced neurite; firing changes brightness, never thickness')}</span>
+    <span class="small">${t('atlas redraw {ms}', { ms: '<b id="mDraw">—</b>' })}</span></div>
   <div class="scrub">
-    <button id="rewPlay" class="sm">▶ replay game</button>
+    <button id="rewPlay" class="sm">${t('▶ replay game')}</button>
     <input type="range" id="scrub" min="0" max="0" value="0">
-    <span class="lb" id="scrublb">live</span>
+    <span class="lb" id="scrublb">${t('live')}</span>
   </div>
 </div>
 <div class="card hero">
-  <h2>Continuous activity across the game <span class="sm">state carried, never reset</span></h2>
+  <h2>${t('Continuous activity across the game')} <span class="sm">${t('state carried, never reset')}</span></h2>
   <canvas class="chart" id="gamec"></canvas>
   <div class="grid4" style="margin-top:12px">
-    <div class="metric"><div class="k">neurons firing now</div><div class="v" id="mRate">—</div>
-      <div class="s" id="mRateS">of ${ST.info ? ST.info.H : 4510}</div></div>
-    <div class="metric"><div class="k">carried from previous move</div><div class="v" id="mOvP">—</div>
-      <div class="s">spike overlap</div></div>
-    <div class="metric"><div class="k">still shared with move 1</div><div class="v" id="mOv1">—</div>
-      <div class="s">unbroken state trajectory</div></div>
-    <div class="metric"><div class="k">cost per timestep</div><div class="v" id="mMs">—</div>
-      <div class="s" id="mMsS">constant — O(H) state</div></div>
+    <div class="metric"><div class="k">${t('neurons firing now')}</div><div class="v" id="mRate">—</div>
+      <div class="s" id="mRateS">${t('of {H}', { H: ST.info ? ST.info.H : 4510 })}</div></div>
+    <div class="metric"><div class="k">${t('carried from previous move')}</div><div class="v" id="mOvP">—</div>
+      <div class="s">${t('spike overlap')}</div></div>
+    <div class="metric"><div class="k">${t('still shared with move 1')}</div><div class="v" id="mOv1">—</div>
+      <div class="s">${t('unbroken state trajectory')}</div></div>
+    <div class="metric"><div class="k">${t('cost per timestep')}</div><div class="v" id="mMs">—</div>
+      <div class="s" id="mMsS">${t('constant — O(H) state')}</div></div>
   </div>
   <canvas class="chart" id="latc" style="margin-top:12px"></canvas>
-  <div class="legend"><span>The lower trace is wall-clock cost per timestep in your browser. It stays
-    <b>flat</b> as the game grows because the circuit carries its state instead of re-reading the game
-    — the readout at move 40 costs exactly what move 1 cost.</span></div>
+  <div class="legend"><span>${t('The lower trace is wall-clock cost per timestep in your browser. It stays <b>flat</b> as the game grows ' +
+    'because the circuit carries its state instead of re-reading the game — the readout at move 40 costs exactly what move 1 cost.')}</span></div>
 </div>
-${mb ? `<div class="grid2">\n  ${DAN_CARD}\n  ${hemiCard}\n</div>` : hemiCard}
+${mb ? `<div class="grid2">\n  ${danCard()}\n  ${hemiCard}\n</div>` : hemiCard}
 <div class="card">
-  <h2>Firing rate per cell class</h2>
+  <h2>${t('Firing rate per cell class')}</h2>
   <canvas class="chart" id="ratec"></canvas>
-  <div class="grid4" id="classes" style="margin-top:12px"><div class="metric"><div class="k">waiting</div>
-    <div class="v">—</div><div class="s">no move computed yet</div></div></div>
+  <div class="grid4" id="classes" style="margin-top:12px"><div class="metric"><div class="k">${t('waiting')}</div>
+    <div class="v">—</div><div class="s">${t('no move computed yet')}</div></div></div>
   <div class="legend"><span>${rateNote}</span></div>
 </div>`;
 }
 
-const MB_CELLS = `<div class="note"><p>The <b>mushroom body</b> is the fly's olfactory <i>learning</i> centre. Four
-    cell classes do the work, and all four are drawn on the atlas:</p></div>
+function mbCells() {
+  const cell = (v, title, id, n, desc) => `<div class="cell"><div class="h"><span class="dot" style="background:var(${v})"></span>${title} —
+      <span id="${id}">${n}</span></div>
+      <div class="d">${desc}</div></div>`;
+  return `<div class="note"><p>${t('The <b>mushroom body</b> is the fly\'s olfactory <i>learning</i> centre. Four cell classes do the work, ' +
+    'and all four are drawn on the atlas:')}</p></div>
   <div class="cells">
-    <div class="cell"><div class="h"><span class="dot" style="background:var(--kc)"></span>Kenyon cells —
-      <span id="cKC">4064</span></div>
-      <div class="d">Sparse expansion layer: the <b>keys</b>. Dendrites in the <b>calyx</b>, axons down
-      the <b>peduncle</b> into the α/β, α'/β' and γ <b>lobes</b>.</div></div>
-    <div class="cell"><div class="h"><span class="dot" style="background:var(--mbon)"></span>MBONs —
-      <span id="cMBON">97</span></div>
-      <div class="d">Output neurons carrying learned <b>values</b>. Their dendrites tile the lobes into
-      compartments; everything downstream sees only these.</div></div>
-    <div class="cell"><div class="h"><span class="dot" style="background:var(--dan)"></span>DANs —
-      <span id="cDAN">340</span></div>
-      <div class="d">Dopamine. They <b>gate the write</b> onto KC→MBON synapses. PAM cells innervate the
-      medial lobes, PPL1 cells the vertical lobes.</div></div>
-    <div class="cell"><div class="h"><span class="dot" style="background:var(--apl)"></span>APL —
-      <span id="cAPL">2</span></div>
-      <div class="d">One giant GABAergic neuron per hemisphere, spanning the whole structure. Global
-      <b>inhibitory feedback</b> that keeps the KC code sparse.</div></div>
+    ${cell('--kc', t('Kenyon cells'), 'cKC', 4064, t('Sparse expansion layer: the <b>keys</b>. Dendrites in the <b>calyx</b>, axons down ' +
+      'the <b>peduncle</b> into the α/β, α\'/β\' and γ <b>lobes</b>.'))}
+    ${cell('--mbon', t('MBONs'), 'cMBON', 97, t('Output neurons carrying learned <b>values</b>. Their dendrites tile the lobes into ' +
+      'compartments; everything downstream sees only these.'))}
+    ${cell('--dan', t('DANs'), 'cDAN', 340, t('Dopamine. They <b>gate the write</b> onto KC→MBON synapses. PAM cells innervate the ' +
+      'medial lobes, PPL1 cells the vertical lobes.'))}
+    ${cell('--apl', 'APL', 'cAPL', 2, t('One giant GABAergic neuron per hemisphere, spanning the whole structure. Global ' +
+      '<b>inhibitory feedback</b> that keeps the KC code sparse.'))}
   </div>`;
+}
 
-const MB_SMALL = `Connectome and soma coordinates: <b>MaleCNS v1.0</b>
-    (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>.
-    Excitatory/inhibitory signs from the release's neurotransmitter annotations; Kenyon cells are
-    treated as cholinergic (excitatory). 4,510 neurons, 1,027,152 within-MB neuron-to-neuron connections,
-    <span id="crossn">134,807</span> of them crossing the midline. Neuron morphology from the same
-    release's traced skeletons.`;
+const mbSmall = () => t('Connectome and soma coordinates: <b>MaleCNS v1.0</b> (male <i>Drosophila melanogaster</i> central nervous system), ' +
+  'used under <b>CC-BY-4.0</b>. Excitatory/inhibitory signs from the release\'s neurotransmitter annotations; Kenyon cells are treated as ' +
+  'cholinergic (excitatory). 4,510 neurons, 1,027,152 within-MB neuron-to-neuron connections, {cross} of them crossing the midline. ' +
+  'Neuron morphology from the same release\'s traced skeletons.', { cross: '<span id="crossn">134,807</span>' });
 
 function circuitCard() {
   const mb = isMB(), d = ST.info;
-  let cells = MB_CELLS, small = MB_SMALL;
-  if (!mb) {
+  let cells, small;
+  if (mb) { cells = mbCells(); small = mbSmall(); } else {
     cells = `<div class="note">${(REGION && REGION.intro) || ''}</div>
   <div class="cells">` + ((REGION && REGION.cells) || []).map(c =>
       `<div class="cell"><div class="h"><span class="dot" style="background:${rgb(c.cls)}"></span>${esc(c.title)} —
       <span>${Number(d.groups[c.cls] || 0).toLocaleString('en-US')}</span></div>
       <div class="d">${esc(c.desc)}</div></div>`).join('\n    ') + `</div>`;
-    small = `Connectome and soma coordinates: <b>MaleCNS v1.0</b>
-    (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>.
-    Excitatory/inhibitory signs from the release's predicted neurotransmitters.
-    ${d.H.toLocaleString('en-US')} neurons, ${Number(d.edges).toLocaleString('en-US')} within-region neuron-to-neuron connections` +
-      (d.cross ? `, <span id="crossn">${Number(d.cross.cross).toLocaleString('en-US')}</span> of them crossing the midline` : '') +
-      `. Neuron morphology from the same release's traced skeletons.`;
+    small = t('Connectome and soma coordinates: <b>MaleCNS v1.0</b> (male <i>Drosophila melanogaster</i> central nervous system), ' +
+      'used under <b>CC-BY-4.0</b>. Excitatory/inhibitory signs from the release\'s predicted neurotransmitters. ' +
+      '{H} neurons, {E} within-region neuron-to-neuron connections{cross}. Neuron morphology from the same release\'s traced skeletons.',
+      { H: d.H.toLocaleString('en-US'), E: Number(d.edges).toLocaleString('en-US'),
+        cross: d.cross ? t(', {n} of them crossing the midline', { n: '<span id="crossn">' + Number(d.cross.cross).toLocaleString('en-US') + '</span>' }) : '' });
   }
   return `
 <div class="card">
-  <h2>The circuit you are watching</h2>
+  <h2>${t('The circuit you are watching')}</h2>
   ${cells}
   <div class="note" style="margin-top:12px">
     ${NOTE}
@@ -204,8 +194,8 @@ function circuitCard() {
   </div>
 </div>
 <div class="card">
-  <h2>The machine</h2>
-  <table class="fact" id="facts"><tr><td>loading…</td><td></td></tr></table>
+  <h2>${t('The machine')}</h2>
+  <table class="fact" id="facts"><tr><td>${t('loading…')}</td><td></td></tr></table>
 </div>`;
 }
 
@@ -374,8 +364,8 @@ function renderBg(Wd, Hd, dpr) {
   }
   x.font = '10px ui-monospace,monospace'; x.fillStyle = '#46536b'; x.textAlign = 'center';
   x.fillText(ST.proj === 'dorsal'
-    ? 'dorsal projection · x = medial-lateral, z = anterior-posterior'
-    : 'frontal projection · x = medial-lateral, y = dorsal-ventral', Wd / 2, Hd - 6);
+    ? t('dorsal projection · x = medial-lateral, z = anterior-posterior')
+    : t('frontal projection · x = medial-lateral, y = dorsal-ventral'), Wd / 2, Hd - 6);
   return cv;
 }
 
@@ -462,11 +452,11 @@ function hemiBar(a, bId, g) {
 }
 function renderClasses(g) {
   $('classes').innerHTML = panelClasses().filter(n => g[n]).map(n =>
-    '<div class="metric"><div class="k"><span class="dot" style="background:' + dotColor(n) + '"></span>' + esc(n) +
+    '<div class="metric"><div class="k"><span class="dot" style="background:' + dotColor(n) + '"></span>' + esc(cname(n)) +
     ' <span style="color:#55617a">n=' + (ST.info ? ST.info.groups[n] : '') + '</span></div>' +
     '<div class="v">' + (100 * g[n].rate).toFixed(1) + '%</div>' +
-    '<div class="s">' + g[n].count + ' spiking' +
-    (g[n].L != null && hasSides(n) ? '  ·  L ' + (100 * g[n].L).toFixed(0) + ' / R ' + (100 * g[n].R).toFixed(0) : '') +
+    '<div class="s">' + t('{n} spiking', { n: g[n].count }) +
+    (g[n].L != null && hasSides(n) ? '  ·  ' + t('L {l} / R {r}', { l: (100 * g[n].L).toFixed(0), r: (100 * g[n].R).toFixed(0) }) : '') +
     '</div></div>').join('');
 }
 function onStep(ev) {
@@ -476,14 +466,14 @@ function onStep(ev) {
   ST.scrubT = null;
   $('scrub').max = Math.max(0, ST.bits.length - 1);
   $('scrub').value = ST.bits.length - 1;
-  $('scrublb').textContent = 'live · t=' + ev.t;
+  $('scrublb').textContent = t('live · t={t}', { t: ev.t });
   drawAtlas(unpack(b.bits, ST.info.H), b.vf ? unpackBytes(b.vf, ST.info.H) : null);
   $('mRate').textContent = (100 * b.rate).toFixed(1) + '%';
-  $('mRateS').textContent = b.n_active + ' of ' + ST.info.H;
+  $('mRateS').textContent = t('{n} of {H}', { n: b.n_active, H: ST.info.H });
   const e = ev.entry;
   $('mOvP').textContent = e.overlap_prev == null ? '—' : (100 * e.overlap_prev).toFixed(0) + '%';
   $('mOv1').textContent = e.overlap_first == null ? '—' : (100 * e.overlap_first).toFixed(0) + '%';
-  $('mMs').textContent = ev.ms.toFixed(0) + ' ms';
+  $('mMs').textContent = t('{n} ms', { n: ev.ms.toFixed(0) });
   if ($('bulb')) {
     $('bulb').classList.toggle('on', !!b.dan_gate_open);
     $('mech').classList.toggle('fire', !!b.dan_gate_open);
@@ -499,7 +489,7 @@ export function renderCands(cands) {
   (cands || []).forEach((c, i) => {
     const row = document.createElement('div');
     row.className = 'cand' + (i === 0 ? ' lead' : '');
-    row.innerHTML = '<div class="rk">' + (i + 1) + '</div><div class="mv">' + esc(c.label) + '</div>' +
+    row.innerHTML = '<div class="rk">' + (i + 1) + '</div><div class="mv">' + esc(t(c.label)) + '</div>' +
       '<div class="bar"><i style="width:' + (100 * c.p).toFixed(1) + '%"></i></div>' +
       '<div class="pv">' + (100 * c.p).toFixed(1) + '%</div>';
     box.appendChild(row);
@@ -509,25 +499,25 @@ function drawGameCharts() {
   const h = ST.hist; if (!h.length) return;
   const n = h.length;
   lineChart('gamec', [
-    { name: 'all', color: '#9fb0cb', v: h.map(e => e.rate) },
-    { name: 'carried from move 1', color: '#ffc447', v: h.map(e => e.overlap_first == null ? 0 : e.overlap_first) },
-  ], 1.0, n, 132, 'timestep (one per move) →');
+    { name: cname('all'), color: '#9fb0cb', v: h.map(e => e.rate) },
+    { name: t('carried from move 1'), color: '#ffc447', v: h.map(e => e.overlap_first == null ? 0 : e.overlap_first) },
+  ], 1.0, n, 132, t('timestep (one per move) →'));
   lineChart('latc', [
-    { name: 'ms / timestep', color: '#5ad1ff', v: h.map(e => e.ms) },
-  ], Math.max(60, Math.ceil(Math.max(...h.map(e => e.ms)) * 1.3)), n, 96, 'timestep →');
+    { name: t('ms / timestep'), color: '#5ad1ff', v: h.map(e => e.ms) },
+  ], Math.max(60, Math.ceil(Math.max(...h.map(e => e.ms)) * 1.3)), n, 96, t('timestep →'));
   lineChart('ratec', panelClasses().map(k => ({
-    name: k, color: rgb(k), v: h.map(e => (e.per_class && e.per_class[k]) || 0),
-  })), 1.0, n, 132, 'timestep →');
+    name: cname(k), color: rgb(k), v: h.map(e => (e.per_class && e.per_class[k]) || 0),
+  })), 1.0, n, 132, t('timestep →'));
   const ms = h.map(e => e.ms);
-  $('mMsS').textContent = 'first ' + ms[0].toFixed(0) + ' · last ' + ms[ms.length - 1].toFixed(0) + ' ms';
+  $('mMsS').textContent = t('first {a} · last {b} ms', { a: ms[0].toFixed(0), b: ms[ms.length - 1].toFixed(0) });
 }
 
-function showT(t) {
-  if (!ST.bits[t]) return;
-  ST.scrubT = t;
-  drawAtlas(unpack(ST.bits[t], ST.info.H), null);
-  const e = ST.hist[t];
-  $('scrublb').textContent = 't=' + t + (e ? '  ' + (100 * e.rate).toFixed(1) + '%' : '');
+function showT(k) {
+  if (!ST.bits[k]) return;
+  ST.scrubT = k;
+  drawAtlas(unpack(ST.bits[k], ST.info.H), null);
+  const e = ST.hist[k];
+  $('scrublb').textContent = 't=' + k + (e ? '  ' + (100 * e.rate).toFixed(1) + '%' : '');
 }
 
 export const FLY = { el: null, bubble: null, carry: null, busy: false, skip: false, x: 0, y: 0, k: 1, csz: 0 };
@@ -665,6 +655,12 @@ export function fitBoard() {
   root.style.setProperty('--bcol', (size + 30) + 'px');
 }
 
+function valText(v) {
+  const m = /^legal top-1 (\d+)\/(\d+) vs the fp32 reference \((\d+) (.+?)\); ([\d,]+) of ([\d,]+) spike bits differ from the reference on the same weights$/.exec(v);
+  return m ? t('legal top-1 {a}/{b} vs the fp32 reference ({n} {games}); {x} of {y} spike bits differ from the reference on the same weights',
+    { a: m[1], b: m[2], n: m[3], games: t(m[4]), x: m[5], y: m[6] }) : v;
+}
+
 function supportsModuleWorker() {
   let ok = false;
   try { new Worker('data:,', { get type() { ok = true; return 'module'; } }).terminate(); } catch (_) {}
@@ -680,11 +676,11 @@ function wirePanels() {
   if (RP) { clearInterval(RP); RP = null; }
   $('scrub').oninput = e => showT(+e.target.value);
   $('rewPlay').onclick = () => {
-    if (RP) { clearInterval(RP); RP = null; $('rewPlay').textContent = '▶ replay game'; return; }
-    let t = 0; $('rewPlay').textContent = '■ stop';
+    if (RP) { clearInterval(RP); RP = null; $('rewPlay').textContent = t('▶ replay game'); return; }
+    let k = 0; $('rewPlay').textContent = t('■ stop');
     RP = setInterval(() => {
-      if (t >= ST.bits.length) { clearInterval(RP); RP = null; $('rewPlay').textContent = '▶ replay game'; return; }
-      $('scrub').value = t; showT(t); t++;
+      if (k >= ST.bits.length) { clearInterval(RP); RP = null; $('rewPlay').textContent = t('▶ replay game'); return; }
+      $('scrub').value = k; showT(k); k++;
     }, 140);
   };
   const setProj = v => {
@@ -697,15 +693,15 @@ function wirePanels() {
   $('vDors').onclick = () => setProj('dorsal');
   if ($('vMem')) $('vMem').onclick = () => {
     ST.memory = !ST.memory;
-    $('vMem').textContent = 'Memory overlay: ' + (ST.memory ? 'on' : 'off');
+    $('vMem').textContent = ST.memory ? t('Memory overlay: on') : t('Memory overlay: off');
     $('vMem').classList.toggle('on', ST.memory);
     if (ST.info) drawAtlas(...currentBits());
   };
 }
 
 function wirePage() {
-  [['tg0', 0], ['tg1', 0.5], ['tg2', 1.0]].forEach(([id, t]) => {
-    $(id).onclick = () => { ST.temp = t; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
+  [['tg0', 0], ['tg1', 0.5], ['tg2', 1.0]].forEach(([id, temp]) => {
+    $(id).onclick = () => { ST.temp = temp; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
   });
   $('skipfly').onclick = () => { FLY.skip = true; };
   let RT = null;
@@ -740,13 +736,13 @@ export async function start(page) {
   if (typeof fetch === 'undefined' || typeof ReadableStream === 'undefined') missing.push('fetch streams');
   if (typeof Float32Array === 'undefined') missing.push('typed arrays');
   if (missing.length) {
-    loaderMsg('This browser cannot run the fly', 'Missing: <b>' + esc(missing.join(', ')) +
-      '</b>. Please use a current Chrome, Edge, Firefox (114+) or Safari (15+).', true);
+    loaderMsg(t('This browser cannot run the fly'), t('Missing: <b>{list}</b>. Please use a current Chrome, Edge, Firefox (114+) or Safari (15+).',
+      { list: esc(missing.join(', ')) }), true);
     throw new Error('unsupported browser');
   }
   W.worker = new Worker(new URL('../engine/worker.js', import.meta.url), { type: 'module' });
   W.worker.onmessage = onWorkerMessage;
-  W.worker.onerror = ev => loaderMsg('The engine failed to start', esc(ev.message || 'worker error'), true);
+  W.worker.onerror = ev => loaderMsg(t('The engine failed to start'), esc(ev.message || 'worker error'), true);
   const spec = page.initialModel ? page.initialModel() : defaultModel(page.kind);
   if (spec) await loadModel(spec);
   else $('loader').style.display = 'none';
@@ -754,25 +750,25 @@ export async function start(page) {
 
 export async function loadModel(spec) {
   if (!spec.wsrc || /[<>]/.test(spec.wsrc)) {
-    loaderMsg('Weights location not configured', 'Set <b>WEIGHTS_BASE</b> for this model in <code>config.js</code> to ' +
-      'the model folder URL (e.g. the Hugging Face <code>resolve/main/</code> URL).', true);
+    loaderMsg(t('Weights location not configured'), t('Set <b>WEIGHTS_BASE</b> for this model in <code>config.js</code> to ' +
+      'the model folder URL (e.g. the Hugging Face <code>resolve/main/</code> URL).'), true);
     throw new Error('WEIGHTS_BASE not configured');
   }
   const wbase = new URL(spec.wsrc, SITE).href;
   ST.ready = false;
-  const brain = spec.region ? 'the fly\'s ' + spec.region.name.toLowerCase() : 'the fly\'s brain';
-  loaderMsg('Loading ' + brain + '…', 'Downloading the trained connectome weights. Everything runs locally in this tab.', false);
-  $('ldBar').style.width = '0%'; $('ldP').textContent = 'starting…';
+  const brain = spec.region ? t('the fly\'s {region}', { region: spec.region.name.toLowerCase() }) : t('the fly\'s brain');
+  loaderMsg(t('Loading {brain}…', { brain }), t('Downloading the trained connectome weights. Everything runs locally in this tab.'), false);
+  $('ldBar').style.width = '0%'; $('ldP').textContent = t('starting…');
   const t0 = performance.now();
   let r;
   try {
     r = await rpc('init', { base: SITE.href, wbase, variant: spec.variant, kind: PAGE.kind }, m => {
       if (m.type !== 'progress') return;
       $('ldBar').style.width = (100 * m.done / Math.max(1, m.total)).toFixed(1) + '%';
-      $('ldP').textContent = MB(m.done) + ' / ' + MB(m.total) + ' MB  ·  ' + m.file;
+      $('ldP').textContent = MB(m.done) + ' / ' + MB(m.total) + ' MB  ·  ' + t(m.file);
     });
   } catch (e) {
-    loaderMsg('Could not load ' + brain, esc(e.message), true); throw e;
+    loaderMsg(t('Could not load {brain}', { brain }), esc(e.message), true); throw e;
   }
   const d = r.info;
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (_) {}
@@ -785,46 +781,48 @@ export async function loadModel(spec) {
   renderPanels();
   $('loader').style.display = 'none';
   const g = d.groups || {}, man = r.manifest, audit = man.connectome_audit || {}, val = man.validation || {}, sc = r.selfcheck;
-  const ok = v => v ? '<span class="ok">PASS</span>' : '<span class="warn">FAIL</span>';
+  const ok = v => v ? '<span class="ok">' + t('PASS') + '</span>' : '<span class="warn">' + t('FAIL') + '</span>';
+  const regionName = d.region ? esc(t(d.region.name).toLowerCase()) : t('mushroom body');
+  const MBs = MB(r.download_bytes), cache = r.cache || {};
   const rows = [
-    ['connectome', 'MaleCNS v1.0 ' + (d.region ? esc(d.region.name.toLowerCase()) : 'mushroom body') + ' (CC-BY-4.0)'],
-    ['neurons', d.H + '  (' + d.class_names.map(n => esc(n) + ' ' + g[n]).join(' · ') + ')'],
-    ['neuron-to-neuron connections', Number(d.edges).toLocaleString()],
-    ['Dale signs', 'E ' + d.sign.E + ' / I ' + d.sign.I + ' / modulatory ' + d.sign.mod],
-    ['hemispheres', d.nL + ' L / ' + d.nR + ' R'],
-    ['cross-midline edges', d.cross ? Number(d.cross.cross).toLocaleString() + ' (' + (100 * d.cross.frac).toFixed(1) + '%)' : '—'],
-    ['soma coordinates', d.atlas ? d.atlas.n_real + ' measured, ' + d.atlas.n_filled + ' imputed' : 'unavailable'],
-    ['run mode', 'RSNN (one timestep per move, state carried, no reset) · in this browser tab'],
+    [t('connectome'), t('MaleCNS v1.0 {region} (CC-BY-4.0)', { region: regionName })],
+    [t('neurons'), d.H + '  (' + d.class_names.map(n => esc(cname(n)) + ' ' + g[n]).join(' · ') + ')'],
+    [t('neuron-to-neuron connections'), Number(d.edges).toLocaleString('en-US')],
+    [t('Dale signs'), t('E {E} / I {I} / modulatory {mod}', d.sign)],
+    [t('hemispheres'), t('{L} L / {R} R', { L: d.nL, R: d.nR })],
+    [t('cross-midline edges'), d.cross ? Number(d.cross.cross).toLocaleString('en-US') + ' (' + (100 * d.cross.frac).toFixed(1) + '%)' : '—'],
+    [t('soma coordinates'), d.atlas ? t('{a} measured, {b} imputed', { a: d.atlas.n_real, b: d.atlas.n_filled }) : t('unavailable')],
+    [t('run mode'), t('RSNN (one timestep per move, state carried, no reset) · in this browser tab')],
   ];
-  if (d.region) rows.push(['input → readout', d.region.n_in + ' ' + esc(d.region.input) + ' → ' + d.region.n_out + ' ' +
-    esc(d.region.output) + ' (no dopamine gate)']);
+  if (d.region) rows.push([t('input → readout'), t('{nin} {input} → {nout} {output} (no dopamine gate)',
+    { nin: d.region.n_in, input: esc(t(d.region.input)), nout: d.region.n_out, output: esc(t(d.region.output)) })]);
   rows.push(
-    ['synaptic weights', 'trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode'],
-    ['move vocabulary', PAGE.vocabText(d.vocab)],
-    ['trained parameters', (d.params / 1e6).toFixed(2) + ' M'],
-    ['model', esc(man.label) + (PAGE.modelNote && PAGE.modelNote() ? ' — ' + esc(PAGE.modelNote()) : '')],
-    ['weights in this page', esc(r.variant) + ' · ' + MB(r.download_bytes) + ' MB ' +
-       (r.cache && r.cache.from_network_bytes === 0 ? 'loaded from this browser\'s storage' :
-        r.cache && r.cache.from_cache_bytes > 0 ? 'loaded (' + MB(r.cache.from_network_bytes) + ' MB downloaded, the rest from this browser\'s storage)' :
-        'downloaded' + (r.cache && r.cache.available ? ', kept in this browser for next time' : ''))],
-    ['recurrent weights', Number(audit.nonzero_weights || 0).toLocaleString() + ' nonzero, ' +
-       Number(audit.off_connectome || 0).toLocaleString() + ' off the connectome'],
-    ['Dale check', Number(audit.wrong_sign || 0).toLocaleString() + ' wrong-sign weights'],
-    ['engine vs reference', val[r.variant] ? esc(val[r.variant]) : '—'],
-    ['load-time self-check', sc ? ok(sc.legal_top1_agree === sc.plies) + ' — legal top-1 ' + sc.legal_top1_agree + '/' + sc.plies +
-       ' plies, max |Δlogit| ' + sc.max_abs_logit_diff.toExponential(1) : '—'],
-    ['engine load', ((performance.now() - t0) / 1000).toFixed(1) + ' s'],
+    [t('synaptic weights'), t('trained with <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode')],
+    [t('move vocabulary'), PAGE.vocabText(d.vocab)],
+    [t('trained parameters'), t('{x} M', { x: (d.params / 1e6).toFixed(2) })],
+    [t('model'), esc(man.label) + (PAGE.modelNote && PAGE.modelNote() ? ' — ' + esc(PAGE.modelNote()) : '')],
+    [t('weights in this page'), cache.from_network_bytes === 0 ? t('{variant} · {mb} MB loaded from this browser\'s storage', { variant: esc(r.variant), mb: MBs })
+      : cache.from_cache_bytes > 0 ? t('{variant} · {mb} MB loaded ({net} MB downloaded, the rest from this browser\'s storage)', { variant: esc(r.variant), mb: MBs, net: MB(cache.from_network_bytes) })
+      : cache.available ? t('{variant} · {mb} MB downloaded, kept in this browser for next time', { variant: esc(r.variant), mb: MBs })
+      : t('{variant} · {mb} MB downloaded', { variant: esc(r.variant), mb: MBs })],
+    [t('recurrent weights'), t('{n} nonzero, {m} off the connectome', { n: Number(audit.nonzero_weights || 0).toLocaleString('en-US'),
+      m: Number(audit.off_connectome || 0).toLocaleString('en-US') })],
+    [t('Dale check'), t('{n} wrong-sign weights', { n: Number(audit.wrong_sign || 0).toLocaleString('en-US') })],
+    [t('engine vs reference'), val[r.variant] ? esc(valText(val[r.variant])) : '—'],
+    [t('load-time self-check'), sc ? ok(sc.legal_top1_agree === sc.plies) + ' ' + t('— legal top-1 {a}/{b} plies, max |Δlogit| {e}',
+      { a: sc.legal_top1_agree, b: sc.plies, e: sc.max_abs_logit_diff.toExponential(1) }) : '—'],
+    [t('engine load'), t('{s} s', { s: ((performance.now() - t0) / 1000).toFixed(1) })],
   );
   $('facts').innerHTML = rows.map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
-  $('footck').textContent = ' Model: ' + man.label + ' (' + r.variant + ' weights).';
+  $('footck').textContent = ' ' + t('Model: {label} ({variant} weights).', { label: man.label, variant: r.variant });
   let st = null;
-  try { const rs = await fetch(new URL('data/strength_' + PAGE.kind + '.json', SITE)); if (rs.ok) st = await rs.json(); } catch (_) {}
+  try { const rs = await fetch(new URL(dataFile('data/strength_' + PAGE.kind + '.json'), SITE)); if (rs.ok) st = await rs.json(); } catch (_) {}
   const cv = PAGE.caveat(st, REGION);
   $('caveat').innerHTML = cv.html;
   if (cv.row) {
     const tb = $('facts'), tr = document.createElement('tr');
-    tr.innerHTML = '<td>strength</td><td>' + cv.row + '</td>';
-    const modelRow = [...tb.children].find(x => x.firstChild && x.firstChild.textContent === 'model');
+    tr.innerHTML = '<td>' + t('strength') + '</td><td>' + cv.row + '</td>';
+    const modelRow = [...tb.children].find(x => x.firstChild && x.firstChild.textContent === t('model'));
     tb.insertBefore(tr, modelRow || null);
   }
   $('hdL').textContent = d.nL; $('hdR').textContent = d.nR;
@@ -832,26 +830,25 @@ export async function loadModel(spec) {
     if ($(id)) $(id).textContent = g[n];
   if (d.cross) {
     $('mCross').textContent = (100 * d.cross.frac).toFixed(1) + '%';
-    $('mCrossS').textContent = Number(d.cross.cross).toLocaleString() + ' of ' + Number(d.cross.edges).toLocaleString();
-    $('mRL').textContent = Number(d.cross.R_to_L).toLocaleString() + ' / ' + Number(d.cross.L_to_R).toLocaleString();
-    if ($('crossn')) $('crossn').textContent = Number(d.cross.cross).toLocaleString();
-    $('crosstxt').innerHTML = 'Bilateral: <b>' + d.nL + ' left / ' + d.nR + ' right</b>, and <b>' +
-      (100 * d.cross.frac).toFixed(1) + '%</b> of ' + (d.region && d.cross.edges < d.edges ? 'edges between neurons of known side' : 'edges') +
-      ' cross the midline — the two sides are not independent copies.';
+    $('mCrossS').textContent = t('{a} of {b}', { a: Number(d.cross.cross).toLocaleString('en-US'), b: Number(d.cross.edges).toLocaleString('en-US') });
+    $('mRL').textContent = Number(d.cross.R_to_L).toLocaleString('en-US') + ' / ' + Number(d.cross.L_to_R).toLocaleString('en-US');
+    if ($('crossn')) $('crossn').textContent = Number(d.cross.cross).toLocaleString('en-US');
+    $('crosstxt').innerHTML = t('Bilateral: <b>{L} left / {R} right</b>, and <b>{p}%</b> of {edges} cross the midline — the two sides are not independent copies.',
+      { L: d.nL, R: d.nR, p: (100 * d.cross.frac).toFixed(1),
+        edges: d.region && d.cross.edges < d.edges ? t('edges between neurons of known side') : t('edges') });
   }
   await loadSkeletons(spec.skel || 'data/mb_skel.json');
   if (SKEL) {
     const c = SKEL.counts || {};
     const tot = Object.values(c).reduce((a, v) => a + (v.have || 0), 0);
     const missingS = Object.values(c).reduce((a, v) => a + (v.missing || 0), 0);
-    $('atlasrc').textContent = tot + ' traced cells · ' + SKEL.n_poly.toLocaleString() + ' branches · MaleCNS v1.0';
-    $('atlasnote').textContent = 'Every line is a real traced neuron. Dim = silent; when a neuron spikes ' +
-      'its WHOLE cell lights up.' + (missingS ? ' ' + missingS + ' cells have no published skeleton.' : '');
-    $('skelsrc').textContent = SKEL.source;
+    $('atlasrc').textContent = t('{n} traced cells · {b} branches · MaleCNS v1.0', { n: tot, b: SKEL.n_poly.toLocaleString('en-US') });
+    $('atlasnote').textContent = t('Every line is a real traced neuron. Dim = silent; when a neuron spikes its WHOLE cell lights up.') +
+      (missingS ? ' ' + t('{n} cells have no published skeleton.', { n: missingS }) : '');
+    $('skelsrc').textContent = t(SKEL.source);
   } else {
-    $('atlasrc').textContent = (d.atlas ? d.atlas.n_real : '') + ' measured soma positions (skeletons unavailable)';
-    $('atlasnote').textContent = 'Skeletons could not be loaded — falling back to measured soma positions ' +
-      '(one dot per neuron).';
+    $('atlasrc').textContent = t('{n} measured soma positions (skeletons unavailable)', { n: d.atlas ? d.atlas.n_real : '' });
+    $('atlasnote').textContent = t('Skeletons could not be loaded — falling back to measured soma positions (one dot per neuron).');
   }
   fitBoard(); PAGE.render();
   buildAtlas();
@@ -863,7 +860,7 @@ export async function newSession() {
   ST.busy = false;
   ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
   $('cands').innerHTML = ''; $('flyline').textContent = '';
-  $('scrub').max = 0; $('scrub').value = 0; $('scrublb').textContent = 'live';
+  $('scrub').max = 0; $('scrub').value = 0; $('scrublb').textContent = t('live');
   ['mRate', 'mOvP', 'mOv1', 'mMs', 'danN'].forEach(i => { if ($(i)) $(i).textContent = '—'; });
   document.querySelectorAll('.hemi .hb i').forEach(el => { el.style.width = '0'; });
   drawAtlas(null, null);
@@ -894,15 +891,15 @@ export async function think() {
       else if (ev.ev === 'final') {
         ST.hist = ev.hist || [];
         renderCands(ev.candidates);
-        const rest = ev.candidates.filter(c => c.move !== ev.move).map(c => esc(c.label) + ' ' + (100 * c.p).toFixed(1) + '%');
-        $('flyline').innerHTML = 'fly: <b style="color:var(--gold)">' + esc(ev.label) + '</b> ' +
+        const rest = ev.candidates.filter(c => c.move !== ev.move).map(c => esc(t(c.label)) + ' ' + (100 * c.p).toFixed(1) + '%');
+        $('flyline').innerHTML = t('fly:') + ' <b style="color:var(--gold)">' + esc(t(ev.label)) + '</b> ' +
           (100 * ev.p).toFixed(1) + '%' + (rest.length ? '  ·  ' + rest.join('  ') : '');
         drawGameCharts();
         ST.anim = PAGE.onFinal(ev);
-      } else if (ev.ev === 'error') { PAGE.renderStatus('fly error'); console.error(ev.msg); }
+      } else if (ev.ev === 'error') { PAGE.renderStatus(t('fly error')); console.error(ev.msg); }
     });
     if (over) { flyThinking(false); flyShow(false); }
-  } catch (e) { PAGE.renderStatus('fly error: ' + e.message); flyThinking(false); flyShow(false); }
+  } catch (e) { PAGE.renderStatus(t('fly error: {msg}', { msg: e.message })); flyThinking(false); flyShow(false); }
   if (ST.anim) { try { await ST.anim; } catch (_) {} ST.anim = null; }
   ST.busy = false; PAGE.sync();
 }
