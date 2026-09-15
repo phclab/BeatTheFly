@@ -44,7 +44,14 @@ numerical self-check against the reference implementation runs every time a game
 or `othello/?weights=<url>` overrides it for a single visit.
 
 ## License
-Code: GPL-3.0-or-later (LICENSE, Copyright (c) 2026 Po-Han Chiang). Model weights: [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+Copyright (C) 2026 Po-Han Chiang
+
+The code is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version (GPL-3.0-or-later). See LICENSE. It is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY.
+
+The model weights loaded by the page are not covered by the code license: [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/).
 Connectome-derived data: CC-BY-4.0. Third-party code and full attribution: NOTICE.md.
 
 ## Citation
