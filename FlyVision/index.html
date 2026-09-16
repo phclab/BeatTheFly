@@ -70,6 +70,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="mode" data-view="top" aria-pressed="false">Top</button>
     <button class="mode" data-view="bottom" aria-pressed="false">Bottom</button>
   </div>
+  <div class="cell" style="margin-top:14px">
+    <h2>Spike raster · sampled neurons · LA/ME/LO/LOP</h2>
+    <canvas id="raster" width="900" height="200"></canvas>
+    <span class="cap">time → (last ~30s) · rows = neurons by layer · dot = spike</span>
+  </div>
   <p class="foot" style="margin-top:8px">Real traced neurite skeletons of 18,353 optic-lobe neurons (right eye) from the MaleCNS connectome — 146,557 fiber polylines in true 3D. Drag to rotate, scroll to zoom. Coloured by layer (LA lamina → ME medulla → LO lobula → LOP lobula plate). With the camera on, signal is injected at the lamina and propagates along <b>217,195 real connectome edges</b>; brightness = activation. Needs local data (phc-pi).</p>
 
   <p class="foot">Each eye is ~871 ommatidia hex-packed into the fly eye's tall oval outline (real ommatidial count and hexagonal packing; idealized elliptical layout). Left eye takes the left visual field, right eye the right, with ~20% central overlap = binocular zone. ON/OFF = per-ommatidium temporal contrast (lamina L1/L2 channels); motion = delayed correlation between neighbouring ommatidia (Reichardt / T4-T5 direction selectivity) — all real-time approximations of the optic lobe's actual computations. All video is processed locally in the browser.</p>
@@ -207,7 +212,7 @@ function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent="three.j
   GRP=new THREE.Group(); SCENE.add(GRP);
   OL.setView=(rx,ry,rz)=>GRP.rotation.set(rx,ry,rz); OL.setView(0,0,0); OL.ready=true;
   (function loop(){requestAnimationFrame(loop);
-    if(running&&OL.rsnnReady){stepRSNN();colorSoma();}
+    if(running&&OL.rsnnReady){stepRSNN();colorSoma();drawRaster();}
     RN.render(SCENE,CAM);})(); return true; }
 if(initScene()){
   fetch("soma_ol_both.json").then(r=>r.json()).then(d=>{
@@ -223,6 +228,11 @@ if(initScene()){
       laI.push(k);laX.push(Math.min(WW-1,Math.max(0,Math.round(su*(WW-1)))));laY.push(Math.min(HH-1,Math.max(0,Math.round(nv*(HH-1)))));}
     Object.assign(OL,{N,layer,col,colAttr,laI:Int32Array.from(laI),laX:Int32Array.from(laX),laY:Int32Array.from(laY),laD:new Float32Array(laI.length),
       V:new Float32Array(N),s:new Float32Array(N),sPrev:new Float32Array(N),trace:new Float32Array(N),drive:new Float32Array(N),syn:new Float32Array(N)});
+    (function(){const rc=document.getElementById("raster"); if(!rc)return; const rctx=rc.getContext("2d",{willReadFrequently:true});
+      rctx.fillStyle="#05070a"; rctx.fillRect(0,0,rc.width,rc.height);
+      const perL=[[],[],[],[]]; for(let k=0;k<N;k++)perL[layer[k]].push(k);
+      const idx=[],lay=[],want=48; for(let L=0;L<4;L++){const arr=perL[L],st=Math.max(1,Math.floor(arr.length/want)); for(let a=0;a<arr.length&&lay.filter(x=>x===L).length<want;a+=st){idx.push(arr[a]);lay.push(L);}}
+      OL.rcanvas=rc; OL.rctx=rctx; OL.rw=rc.width; OL.rh=rc.height; OL.sampleIdx=Int32Array.from(idx); OL.sampleLayer=Int8Array.from(lay);})();
     OLstat.textContent=N.toLocaleString()+" LIF neurons · loading edges + E/I…";
     Promise.all([fetch("edges_ol_both.json").then(r=>r.json()),fetch("sign_ol.json").then(r=>r.json())]).then(([ed,sg])=>{
       const pre=new Int32Array(b64(ed.pre).buffer),post=new Int32Array(b64(ed.post).buffer),w=new Uint8Array(b64(ed.w).buffer);
@@ -246,6 +256,9 @@ function stepRSNN(){
   const rate=fired/N; OL.GAIN=Math.max(0.001,Math.min(0.06, G*Math.pow(TARGET/(rate+1e-4),0.03)));
   const sp=OL.sPrev; for(let k=0;k<N;k++) trace[k]=Math.max(trace[k]*0.80, sp[k]);
 }
+function drawRaster(){const rc=OL.rctx; if(!rc)return; const W=OL.rw,H=OL.rh,sp=OL.sPrev,idx=OL.sampleIdx,lay=OL.sampleLayer,n=idx.length,rowH=H/n;
+  rc.drawImage(OL.rcanvas,-2,0); rc.fillStyle="#05070a"; rc.fillRect(W-2,0,2,H);
+  for(let r=0;r<n;r++){ if(sp[idx[r]]>0.5){ const c=LAYCOL[lay[r]]; rc.fillStyle="rgb("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+")"; rc.fillRect(W-2,r*rowH,2,Math.max(1.2,rowH));}}}
 function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
   for(let k=0;k<N;k++){const c=LAYCOL[layer[k]],v=0.13+0.95*trace[k];col[k*3]=c[0]*v;col[k*3+1]=c[1]*v;col[k*3+2]=c[2]*v;}
   colAttr.needsUpdate=true;}
