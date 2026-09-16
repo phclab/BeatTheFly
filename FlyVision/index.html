@@ -45,6 +45,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   <div class="bar">
     <button class="go" id="start">▶ Start camera</button>
+    <button class="mode" id="pause">⏸ Pause</button>
     <button class="mode" id="m0" aria-pressed="true">Fly view (luminance)</button>
     <button class="mode" id="m1" aria-pressed="false">Lamina ON/OFF</button>
     <button class="mode" id="m2" aria-pressed="false">Motion T4/T5</button>
@@ -82,7 +83,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <video id="vid" playsinline muted style="display:none"></video>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>const S3=Math.sqrt(3);
+<script>
+const S3=Math.sqrt(3);
 let EYE_L,EYE_R,NL,NR,N,lum,lumP,lumD,DRAW,SRC,NBR,EYEREADY=false;
 function buildEye(xa,ya){
   const n=xa.length; let a=1e18,b=-1e18,c=1e18,dd=-1e18;
@@ -100,7 +102,7 @@ const vid=document.getElementById("vid");
 const cam=document.getElementById("cam"), cx=cam.getContext("2d");
 const fly=document.getElementById("fly"), fx=fly.getContext("2d");
 const off=document.createElement("canvas"); off.width=off.height=170; const ox=off.getContext("2d",{willReadFrequently:true});
-let mode=0, running=false, frames=0, fpsT=0;
+let mode=0, running=false, frames=0, fpsT=0, paused=false;
 const MODENAMES=["Luminance","Lamina ON/OFF","Motion T4/T5"];
 const HEX=[]; for(let k=0;k<6;k++){const A=Math.PI/180*(60*k-90);HEX.push([Math.cos(A),Math.sin(A)]);}
 function hexPath(ctx,px,py,r){ctx.beginPath();for(let k=0;k<6;k++){const x=px+r*HEX[k][0],y=py+r*HEX[k][1];k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}
@@ -151,7 +153,7 @@ function drawFly(){
       const mag=Math.min(1,Math.hypot(mx,my)*10),hue=(Math.atan2(my,mx)*180/Math.PI+360)%360;
       col="hsla("+hue+",85%,"+(18+mag*42)+"%,"+(0.14+mag)+")";}
     fx.fillStyle=col; hexPath(fx,px,py,r); fx.fill(); } }
-function loop(t){ if(!running)return; sample(); drawCam(); drawFly();
+function loop(t){ if(!running)return; if(paused){requestAnimationFrame(loop);return;} sample(); drawCam(); drawFly();
   frames++; if(t-fpsT>500){document.getElementById("fps").textContent=Math.round(frames*1000/(t-fpsT))+" fps";frames=0;fpsT=t;}
   requestAnimationFrame(loop);}
 async function start(){
@@ -163,7 +165,8 @@ async function start(){
     st.textContent="The fly is watching you — move to light up motion in both eyes"; document.getElementById("start").textContent="⏹ Camera on";
   }catch(e){ st.className="status err";
     st.textContent="Cannot open camera: "+(e&&e.name||e)+". If blocked by the shared-page sandbox, open this page locally instead."; } }
-document.getElementById("start").onclick=start;
+function stopCam(){ if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null;} running=false; document.getElementById("start").textContent="▶ Start camera"; document.getElementById("status").textContent="Camera off"; drawRest(); }
+document.getElementById("start").onclick=()=>{ if(running) stopCam(); else start(); };
 function setMode(m){mode=m;document.getElementById("modeName").textContent=MODENAMES[m];
   ["m0","m1","m2"].forEach((id,k)=>document.getElementById(id).setAttribute("aria-pressed",k===m));
   document.getElementById("capR").textContent=[(N||"")+" ommatidia · luminance","Lamina L1/L2 · temporal contrast","T4/T5 · direction-selective motion"][m];
@@ -171,6 +174,7 @@ function setMode(m){mode=m;document.getElementById("modeName").textContent=MODEN
 document.getElementById("m0").onclick=()=>setMode(0);
 document.getElementById("m1").onclick=()=>setMode(1);
 document.getElementById("m2").onclick=()=>setMode(2);
+document.getElementById("pause").onclick=()=>{paused=!paused;document.getElementById("pause").textContent=paused?"▶ Resume":"⏸ Pause";};
 function drawRest(){const r=window._rad;fx.clearRect(0,0,fly.width,fly.height);
   for(let i=0;i<N;i++){fx.fillStyle="rgba(57,208,200,.16)";hexPath(fx,DRAW[i*2],DRAW[i*2+1],r);fx.fill();}
   cx.fillStyle="#05070a";cx.fillRect(0,0,cam.width,cam.height);
@@ -200,6 +204,13 @@ const OL={ready:false,rsnnReady:false,GAIN:0.012}; let olf=0;
 const LAYCOL=[[0.30,0.85,0.80],[0.34,0.88,0.52],[0.95,0.74,0.28],[0.95,0.42,0.90]];
 const LEAK=0.90, VTH=1.0, TARGET=0.045, DRIVEG=3.2;
 function b64(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);return u;}
+function fitView(){ if(!OL.bbox||!CAM)return; const bb=OL.bbox,e=GRP.rotation;
+  const cx=Math.cos(e.x),sx=Math.sin(e.x),cy=Math.cos(e.y),sy=Math.sin(e.y),C=[];
+  for(const X of[bb[0],bb[1]])for(const Y of[bb[2],bb[3]])for(const Z of[bb[4],bb[5]]){
+    const x1=cy*X+sy*Z,z1=-sy*X+cy*Z,y1=Y; C.push([x1,cx*y1-sx*z1,sx*y1+cx*z1]); }
+  const tan=Math.tan(45*Math.PI/360),asp=CAM.aspect;
+  const nd=zc=>{let m=0;for(const c of C){const dz=zc-c[2];if(dz<=0.02)return 1e9;m=Math.max(m,Math.abs(c[0])/(dz*tan*asp),Math.abs(c[1])/(dz*tan));}return m;};
+  let lo=0.3,hi=14;for(let i=0;i<44;i++){const md=(lo+hi)/2;if(nd(md)>0.9)lo=md;else hi=md;} CAM.position.z=hi; }
 function centerScale(x,y,z,N){let cx=0,cy=0,cz=0;for(let k=0;k<N;k++){cx+=x[k];cy+=y[k];cz+=z[k];}cx/=N;cy/=N;cz/=N;
   let mr=1e-6;for(let k=0;k<N;k++){const m=Math.max(Math.abs(x[k]-cx),Math.abs(y[k]-cy),Math.abs(z[k]-cz));if(m>mr)mr=m;}
   const pos=new Float32Array(N*3),s=1/mr;for(let k=0;k<N;k++){pos[k*3]=(x[k]-cx)*s;pos[k*3+1]=(y[k]-cy)*s;pos[k*3+2]=(z[k]-cz)*s;}return pos;}
@@ -208,16 +219,17 @@ function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent="three.j
   const W=olc.width,H=olc.height;
   RN=new THREE.WebGLRenderer({canvas:olc,antialias:true}); RN.setSize(W,H,false); RN.setClearColor(0x070a0e,1);
   SCENE=new THREE.Scene(); SCENE.fog=new THREE.FogExp2(0x070a0e,0.20);
-  CAM=new THREE.PerspectiveCamera(45,W/H,0.01,100); CAM.position.set(0,0,2.9);
+  CAM=new THREE.PerspectiveCamera(45,W/H,0.01,100); CAM.position.set(0,0,1.95);
   GRP=new THREE.Group(); SCENE.add(GRP);
-  OL.setView=(rx,ry,rz)=>GRP.rotation.set(rx,ry,rz); OL.setView(0,0,0); OL.ready=true;
+  OL.setView=(rx,ry,rz)=>{GRP.rotation.set(rx,ry,rz);fitView();}; OL.setView(0,0,0); OL.ready=true;
   (function loop(){requestAnimationFrame(loop);
-    if(running&&OL.rsnnReady){stepRSNN();colorSoma();drawRaster();}
+    if(!paused&&running&&OL.rsnnReady){stepRSNN();colorSoma();drawRaster();}
     RN.render(SCENE,CAM);})(); return true; }
 if(initScene()){
   fetch("soma_ol_both.json").then(r=>r.json()).then(d=>{
     const N=d.n, layer=Int8Array.from(d.layer), eye=Int8Array.from(d.eye), pos=centerScale(d.x,d.y,d.z,N), col=new Float32Array(N*3);
     for(let k=0;k<N;k++){const c=LAYCOL[layer[k]];col[k*3]=c[0]*0.16;col[k*3+1]=c[1]*0.16;col[k*3+2]=c[2]*0.16;}
+    {let bb=[1e9,-1e9,1e9,-1e9,1e9,-1e9];for(let k=0;k<N;k++){const x=pos[k*3],y=pos[k*3+1],z=pos[k*3+2];if(x<bb[0])bb[0]=x;if(x>bb[1])bb[1]=x;if(y<bb[2])bb[2]=y;if(y>bb[3])bb[3]=y;if(z<bb[4])bb[4]=z;if(z>bb[5])bb[5]=z;}OL.bbox=bb;fitView();}
     const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
     const colAttr=new THREE.BufferAttribute(col,3); geo.setAttribute('color',colAttr);
     GRP.add(new THREE.Points(geo,new THREE.PointsMaterial({size:2.4,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:0.92,fog:true})));
@@ -264,4 +276,5 @@ function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
   colAttr.needsUpdate=true;}
 const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Math.PI/2,0],top:[-Math.PI/2,0,0],bottom:[Math.PI/2,0,0]};
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
-  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));</script>
+  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+</script>
