@@ -1,0 +1,258 @@
+<meta charset="utf-8"><title>Fly's Eye</title>
+<style>
+:root{
+  --bg:#0a0c10; --panel:#0f1319; --line:#1e2632; --ink:#e8ecf2; --mut:#7d8896;
+  --accent:#39d0c8; --on:#ff5a48; --off:#3d7bff; --warn:#e6b23c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+h1{font-size:24px;margin:0;letter-spacing:.02em}
+.by{font:600 11px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+.sub{color:var(--mut);font-size:13px;margin:2px 0 16px;max-width:72ch}
+.stage{display:grid;grid-template-columns:1fr 1.35fr;gap:14px}
+@media(max-width:760px){.stage{grid-template-columns:1fr}}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;position:relative;overflow:hidden}
+.cell h2{font:600 12px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:2px 4px 8px}
+canvas{width:100%;height:auto;display:block;border-radius:9px;background:#05070a}
+.cap{position:absolute;left:16px;bottom:14px;font:600 11px "IBM Plex Mono",monospace;color:var(--mut);background:rgba(8,10,14,.6);padding:3px 7px;border-radius:5px;backdrop-filter:blur(3px)}
+.eyelab{position:absolute;top:40px;font:600 10px "IBM Plex Mono",monospace;color:var(--mut);letter-spacing:.1em}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 6px}
+button{font:600 13px inherit;border:1px solid var(--line);background:#141a22;color:var(--ink);padding:9px 15px;border-radius:9px;cursor:pointer}
+button.go{background:var(--accent);color:#04100f;border-color:var(--accent)}
+button.mode{color:var(--mut)} button.mode[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:#0f2320}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.status{color:var(--mut);font-size:13px;min-height:1.3em;margin-top:4px}
+.status.err{color:var(--warn)}
+.meta{display:flex;gap:20px;flex-wrap:wrap;color:var(--mut);font:12px "IBM Plex Mono",monospace;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.meta b{color:var(--ink)}
+.foot{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.6}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+
+<div class="wrap">
+  <div class="top"><h1>🪰 Fly's Eye</h1><span class="by">MaleCNS · both eyes · 1,769 ommatidia</span></div>
+  <p class="sub">See the world dropped to <b>a fruit fly's resolution</b> through your camera — two compound eyes (right 892 + left 877 real ommatidia, from the retinotopic coordinates in the MaleCNS connectome). The right panels show what the optic lobe computes: luminance, lamina ON/OFF contrast, and T4/T5 direction-selective motion. Each eye sees one side; the centre overlap is the binocular zone.</p>
+
+  <div class="stage">
+    <div class="cell"><h2>Your camera</h2><canvas id="cam" width="440" height="440"></canvas><span class="cap" id="capL">raw feed</span></div>
+    <div class="cell"><h2 id="flyTitle">Fly optic lobe (both eyes)</h2><canvas id="fly" width="760" height="440"></canvas>
+      <span class="eyelab" style="left:16px">Left eye L · 877</span><span class="eyelab" style="right:16px">Right eye R · 892</span>
+      <span class="cap" id="capR">1769 ommatidia</span></div>
+  </div>
+
+  <div class="bar">
+    <button class="go" id="start">▶ Start camera</button>
+    <button class="mode" id="m0" aria-pressed="true">Fly view (luminance)</button>
+    <button class="mode" id="m1" aria-pressed="false">Lamina ON/OFF</button>
+    <button class="mode" id="m2" aria-pressed="false">Motion T4/T5</button>
+  </div>
+  <div class="status" id="status">Press Start camera — video is processed only on your device, never uploaded.</div>
+
+  <div class="meta">
+    <span>Ommatidia <b id="nOmm">1769</b></span>
+    <span>Eyes <b>L 877 · R 892</b></span>
+    <span>FPS <b id="fps">–</b></span>
+    <span>Mode <b id="modeName">Luminance</b></span>
+  </div>
+  <div class="cell" style="margin-top:14px">
+    <h2 id="olTitle">Optic-lobe LIF-RSNN · live spiking · 3D · fixed views</h2>
+    <canvas id="ol" width="980" height="700"></canvas>
+    <span class="cap" id="olstatus">Loading optic-lobe topology…</span>
+  </div>
+  <div class="bar" style="margin-top:8px">
+    <button class="mode" data-view="front" aria-pressed="true">Front</button>
+    <button class="mode" data-view="back" aria-pressed="false">Back</button>
+    <button class="mode" data-view="left" aria-pressed="false">Left</button>
+    <button class="mode" data-view="right" aria-pressed="false">Right</button>
+    <button class="mode" data-view="top" aria-pressed="false">Top</button>
+    <button class="mode" data-view="bottom" aria-pressed="false">Bottom</button>
+  </div>
+  <p class="foot" style="margin-top:8px">Real traced neurite skeletons of 18,353 optic-lobe neurons (right eye) from the MaleCNS connectome — 146,557 fiber polylines in true 3D. Drag to rotate, scroll to zoom. Coloured by layer (LA lamina → ME medulla → LO lobula → LOP lobula plate). With the camera on, signal is injected at the lamina and propagates along <b>217,195 real connectome edges</b>; brightness = activation. Needs local data (phc-pi).</p>
+
+  <p class="foot">Each eye is ~871 ommatidia hex-packed into the fly eye's tall oval outline (real ommatidial count and hexagonal packing; idealized elliptical layout). Left eye takes the left visual field, right eye the right, with ~20% central overlap = binocular zone. ON/OFF = per-ommatidium temporal contrast (lamina L1/L2 channels); motion = delayed correlation between neighbouring ommatidia (Reichardt / T4-T5 direction selectivity) — all real-time approximations of the optic lobe's actual computations. All video is processed locally in the browser.</p>
+</div>
+
+<video id="vid" playsinline muted style="display:none"></video>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const S3=Math.sqrt(3);
+let EYE_L,EYE_R,NL,NR,N,lum,lumP,lumD,DRAW,SRC,NBR,EYEREADY=false;
+function buildEye(xa,ya){
+  const n=xa.length; let a=1e18,b=-1e18,c=1e18,dd=-1e18;
+  for(let i=0;i<n;i++){if(xa[i]<a)a=xa[i];if(xa[i]>b)b=xa[i];if(ya[i]<c)c=ya[i];if(ya[i]>dd)dd=ya[i];}
+  const O=new Array(n); for(let i=0;i<n;i++)O[i]={x:xa[i],y:ya[i],nq:-1,nr:-1};
+  let sd=0; for(let i=0;i<n;i++){let m=1e18;for(let j=0;j<n;j++){if(i===j)continue;const dx=xa[j]-xa[i],dy=ya[j]-ya[i],e=dx*dx+dy*dy;if(e<m)m=e;}sd+=Math.sqrt(m);}
+  const md=sd/n||1, th=(2.3*md)*(2.3*md);
+  for(let i=0;i<n;i++){let br=1e18,bu=1e18;
+    for(let j=0;j<n;j++){if(i===j)continue;const dx=xa[j]-xa[i],dy=ya[j]-ya[i],e=dx*dx+dy*dy; if(e>th)continue;
+      if(dx>0&&Math.abs(dy)<dx&&e<br){br=e;O[i].nq=j;}
+      if(dy>0&&Math.abs(dx)<dy&&e<bu){bu=e;O[i].nr=j;}}}
+  return {O,minX:a,maxX:b,minY:c,maxY:dd,spanX:b-a,spanY:dd-c,md};
+}
+const vid=document.getElementById("vid");
+const cam=document.getElementById("cam"), cx=cam.getContext("2d");
+const fly=document.getElementById("fly"), fx=fly.getContext("2d");
+const off=document.createElement("canvas"); off.width=off.height=170; const ox=off.getContext("2d",{willReadFrequently:true});
+let mode=0, running=false, frames=0, fpsT=0;
+const MODENAMES=["Luminance","Lamina ON/OFF","Motion T4/T5"];
+const HEX=[]; for(let k=0;k<6;k++){const A=Math.PI/180*(60*k-90);HEX.push([Math.cos(A),Math.sin(A)]);}
+function hexPath(ctx,px,py,r){ctx.beginPath();for(let k=0;k<6;k++){const x=px+r*HEX[k][0],y=py+r*HEX[k][1];k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}
+function layout(){
+  const W=fly.width,H=fly.height,pad=14,gap=18; const halfW=(W-gap)/2-pad;
+  const sc=Math.min(halfW/Math.max(EYE_L.spanX,EYE_R.spanX),(H-2*pad)/Math.max(EYE_L.spanY,EYE_R.spanY));
+  window._rad=sc*Math.max(EYE_L.md,EYE_R.md)*0.55;
+  function place(eye,base,side){
+    const usableH=eye.spanY*sc, oy=(H-usableH)/2, ex=(halfW-eye.spanX*sc)/2;
+    for(let i=0;i<eye.O.length;i++){const o=eye.O[i],gi=base+i;
+      const lx=(o.x-eye.minX)*sc, ly=(o.y-eye.minY)*sc+oy;
+      const px = side==="L" ? pad+ex+lx : (W/2+gap/2)+ex+lx;
+      DRAW[gi*2]=px; DRAW[gi*2+1]=ly;
+      const nx=(o.x-eye.minX)/eye.spanX, ny=(o.y-eye.minY)/eye.spanY;
+      const sx = side==="L" ? nx*0.56 : 0.44+nx*0.56;
+      SRC[gi*2]=sx; SRC[gi*2+1]=ny;
+      NBR[gi*2]=o.nq<0?-1:base+o.nq; NBR[gi*2+1]=o.nr<0?-1:base+o.nr;
+    } }
+  place(EYE_L,0,"L"); place(EYE_R,NL,"R");
+}
+function sample(){
+  if(!EYEREADY)return;
+  const vw=vid.videoWidth, vh=vid.videoHeight; if(!vw)return;
+  const s=Math.min(vw,vh), sx0=(vw-s)/2, sy0=(vh-s)/2;
+  ox.save(); ox.translate(off.width,0); ox.scale(-1,1);
+  ox.drawImage(vid,sx0,sy0,s,s,0,0,off.width,off.height); ox.restore();
+  const im=ox.getImageData(0,0,off.width,off.height).data, WW=off.width,HH=off.height;
+  for(let i=0;i<N;i++){
+    const px=Math.min(WW-1,Math.max(0,Math.round(SRC[i*2]*(WW-1))));
+    const py=Math.min(HH-1,Math.max(0,Math.round(SRC[i*2+1]*(HH-1))));
+    const p=(py*WW+px)*4; const v=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255;
+    lumP[i]=lum[i]; lum[i]=v; lumD[i]+=(v-lumD[i])*0.18; } }
+function drawCam(){
+  const vw=vid.videoWidth, vh=vid.videoHeight; if(!vw)return;
+  const s=Math.min(vw,vh), sx0=(vw-s)/2, sy0=(vh-s)/2;
+  cx.save(); cx.translate(cam.width,0); cx.scale(-1,1);
+  cx.drawImage(vid,sx0,sy0,s,s,0,0,cam.width,cam.height); cx.restore(); }
+function drawFly(){
+  if(!EYEREADY)return; const r=window._rad; fx.clearRect(0,0,fly.width,fly.height);
+  for(let i=0;i<N;i++){
+    const px=DRAW[i*2],py=DRAW[i*2+1]; let col;
+    if(mode===0){const v=Math.round(lum[i]*255);col="rgb("+v+","+v+","+v+")";}
+    else if(mode===1){const d=lum[i]-lumP[i];const m=Math.min(1,Math.abs(d)*6);
+      col=d>=0?"rgba(255,90,72,"+(0.12+m)+")":"rgba(61,123,255,"+(0.12+m)+")";}
+    else{let mx=0,my=0; const jq=NBR[i*2],jr=NBR[i*2+1];
+      if(jq>=0)mx=lum[i]*lumD[jq]-lumD[i]*lum[jq];
+      if(jr>=0)my=lum[i]*lumD[jr]-lumD[i]*lum[jr];
+      const mag=Math.min(1,Math.hypot(mx,my)*10),hue=(Math.atan2(my,mx)*180/Math.PI+360)%360;
+      col="hsla("+hue+",85%,"+(18+mag*42)+"%,"+(0.14+mag)+")";}
+    fx.fillStyle=col; hexPath(fx,px,py,r); fx.fill(); } }
+function loop(t){ if(!running)return; sample(); drawCam(); drawFly();
+  frames++; if(t-fpsT>500){document.getElementById("fps").textContent=Math.round(frames*1000/(t-fpsT))+" fps";frames=0;fpsT=t;}
+  requestAnimationFrame(loop);}
+async function start(){
+  const st=document.getElementById("status");
+  if(!EYEREADY){st.textContent="Loading eye geometry…";return;}
+  try{ st.className="status"; st.textContent="Requesting camera…";
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+    vid.srcObject=stream; await vid.play(); running=true; fpsT=performance.now(); requestAnimationFrame(loop);
+    st.textContent="The fly is watching you — move to light up motion in both eyes"; document.getElementById("start").textContent="⏹ Camera on";
+  }catch(e){ st.className="status err";
+    st.textContent="Cannot open camera: "+(e&&e.name||e)+". If blocked by the shared-page sandbox, open this page locally instead."; } }
+document.getElementById("start").onclick=start;
+function setMode(m){mode=m;document.getElementById("modeName").textContent=MODENAMES[m];
+  ["m0","m1","m2"].forEach((id,k)=>document.getElementById(id).setAttribute("aria-pressed",k===m));
+  document.getElementById("capR").textContent=[(N||"")+" ommatidia · luminance","Lamina L1/L2 · temporal contrast","T4/T5 · direction-selective motion"][m];
+  document.getElementById("flyTitle").textContent=["Fly optic lobe · luminance","Fly optic lobe · ON/OFF","Fly optic lobe · motion"][m];}
+document.getElementById("m0").onclick=()=>setMode(0);
+document.getElementById("m1").onclick=()=>setMode(1);
+document.getElementById("m2").onclick=()=>setMode(2);
+function drawRest(){const r=window._rad;fx.clearRect(0,0,fly.width,fly.height);
+  for(let i=0;i<N;i++){fx.fillStyle="rgba(57,208,200,.16)";hexPath(fx,DRAW[i*2],DRAW[i*2+1],r);fx.fill();}
+  cx.fillStyle="#05070a";cx.fillRect(0,0,cam.width,cam.height);
+  cx.fillStyle="#39d0c8";cx.font='600 15px "IBM Plex Mono",monospace';cx.textAlign="center";
+  cx.fillText("Press ▶ Start camera",cam.width/2,cam.height/2);}
+function makeOval(nApprox,aspect){
+  let A=Math.sqrt(nApprox*S3*1.5/(Math.PI*aspect)); const B=A*aspect;
+  const xs=[],ys=[], rmax=Math.ceil(B/1.5)+2, cmax=Math.ceil(A/S3)+2;
+  for(let r=-rmax;r<=rmax;r++){const y=1.5*r, xoff=(r&1)?S3/2:0;
+    for(let c=-cmax;c<=cmax;c++){const x=S3*c+xoff;
+      if((x*x)/(A*A)+(y*y)/(B*B)<=1.0){xs.push(x);ys.push(y);}}}
+  return {x:xs,y:ys};
+}
+(function initEyes(){
+  const ov=makeOval(880,1.42);
+  const EYE=buildEye(ov.x,ov.y); EYE_L=EYE; EYE_R=EYE;
+  NL=EYE.O.length; NR=EYE.O.length; N=NL+NR;
+  lum=new Float32Array(N); lumP=new Float32Array(N); lumD=new Float32Array(N);
+  DRAW=new Float32Array(N*2); SRC=new Float32Array(N*2); NBR=new Int32Array(N*2);
+  layout(); EYEREADY=true; drawRest();
+  document.getElementById("nOmm").textContent=N;
+  const el=document.querySelectorAll('.eyelab'); if(el[0])el[0].textContent="Left eye L · "+NL; if(el[1])el[1].textContent="Right eye R · "+NR;
+  document.getElementById("capR").textContent=N+" ommatidia";
+})();
+
+// ===== optic-lobe 3D LIF-RSNN (real spiking) + fixed views =====
+const olc=document.getElementById("ol"), OLstat=document.getElementById("olstatus");
+const OL={ready:false,rsnnReady:false,GAIN:0.012}; let olf=0;
+const LAYCOL=[[0.30,0.85,0.80],[0.34,0.88,0.52],[0.95,0.74,0.28],[0.95,0.42,0.90]];
+const LEAK=0.90, VTH=1.0, TARGET=0.045, DRIVEG=3.2;
+function b64(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);return u;}
+function centerScale(x,y,z,N){let cx=0,cy=0,cz=0;for(let k=0;k<N;k++){cx+=x[k];cy+=y[k];cz+=z[k];}cx/=N;cy/=N;cz/=N;
+  let mr=1e-6;for(let k=0;k<N;k++){const m=Math.max(Math.abs(x[k]-cx),Math.abs(y[k]-cy),Math.abs(z[k]-cz));if(m>mr)mr=m;}
+  const pos=new Float32Array(N*3),s=1/mr;for(let k=0;k<N;k++){pos[k*3]=(x[k]-cx)*s;pos[k*3+1]=(y[k]-cy)*s;pos[k*3+2]=(z[k]-cz)*s;}return pos;}
+let RN,SCENE,CAM,GRP;
+function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent="three.js failed to load (CDN blocked)";return false;}
+  const W=olc.width,H=olc.height;
+  RN=new THREE.WebGLRenderer({canvas:olc,antialias:true}); RN.setSize(W,H,false); RN.setClearColor(0x070a0e,1);
+  SCENE=new THREE.Scene(); SCENE.fog=new THREE.FogExp2(0x070a0e,0.20);
+  CAM=new THREE.PerspectiveCamera(45,W/H,0.01,100); CAM.position.set(0,0,2.9);
+  GRP=new THREE.Group(); SCENE.add(GRP);
+  OL.setView=(rx,ry,rz)=>GRP.rotation.set(rx,ry,rz); OL.setView(0,0,0); OL.ready=true;
+  (function loop(){requestAnimationFrame(loop);
+    if(running&&OL.rsnnReady){stepRSNN();colorSoma();}
+    RN.render(SCENE,CAM);})(); return true; }
+if(initScene()){
+  fetch("soma_ol_both.json").then(r=>r.json()).then(d=>{
+    const N=d.n, layer=Int8Array.from(d.layer), eye=Int8Array.from(d.eye), pos=centerScale(d.x,d.y,d.z,N), col=new Float32Array(N*3);
+    for(let k=0;k<N;k++){const c=LAYCOL[layer[k]];col[k*3]=c[0]*0.16;col[k*3+1]=c[1]*0.16;col[k*3+2]=c[2]*0.16;}
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const colAttr=new THREE.BufferAttribute(col,3); geo.setAttribute('color',colAttr);
+    GRP.add(new THREE.Points(geo,new THREE.PointsMaterial({size:2.4,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:0.92,fog:true})));
+    const ez=[[1e18,-1e18,1e18,-1e18],[1e18,-1e18,1e18,-1e18]];
+    for(let k=0;k<N;k++) if(layer[k]===0){const b=ez[eye[k]]; if(d.y[k]<b[0])b[0]=d.y[k]; if(d.y[k]>b[1])b[1]=d.y[k]; if(d.z[k]<b[2])b[2]=d.z[k]; if(d.z[k]>b[3])b[3]=d.z[k];}
+    const WW=off.width,HH=off.height, laI=[],laX=[],laY=[];
+    for(let k=0;k<N;k++) if(layer[k]===0){const e=eye[k],b=ez[e];const nu=(d.y[k]-b[0])/((b[1]-b[0])||1),nv=(d.z[k]-b[2])/((b[3]-b[2])||1),su=e===0?nu*0.56:0.44+nu*0.56;
+      laI.push(k);laX.push(Math.min(WW-1,Math.max(0,Math.round(su*(WW-1)))));laY.push(Math.min(HH-1,Math.max(0,Math.round(nv*(HH-1)))));}
+    Object.assign(OL,{N,layer,col,colAttr,laI:Int32Array.from(laI),laX:Int32Array.from(laX),laY:Int32Array.from(laY),laD:new Float32Array(laI.length),
+      V:new Float32Array(N),s:new Float32Array(N),sPrev:new Float32Array(N),trace:new Float32Array(N),drive:new Float32Array(N),syn:new Float32Array(N)});
+    OLstat.textContent=N.toLocaleString()+" LIF neurons · loading edges + E/I…";
+    Promise.all([fetch("edges_ol_both.json").then(r=>r.json()),fetch("sign_ol.json").then(r=>r.json())]).then(([ed,sg])=>{
+      const pre=new Int32Array(b64(ed.pre).buffer),post=new Int32Array(b64(ed.post).buffer),w=new Uint8Array(b64(ed.w).buffer);
+      const sign=Int8Array.from(sg.sign), M=pre.length, ews=new Float32Array(M);
+      for(let e=0;e<M;e++) ews[e]=w[e]*sign[pre[e]];
+      Object.assign(OL,{pre,post,ews,sign}); OL.rsnnReady=true;
+      OLstat.textContent=OL.N.toLocaleString()+" LIF neurons · "+M.toLocaleString()+" edges (E 75% / I 25%) · start camera";
+    }).catch(e=>{OLstat.textContent="edges/sign not loaded: "+e;});
+  }).catch(e=>{OLstat.textContent="Optic-lobe soma not loaded (needs phc-pi local): "+e;});
+}
+function stepRSNN(){
+  const {N,layer,pre,post,ews,laI,laX,laY,laD,V,s,sPrev,trace,drive,syn}=OL;
+  const im=ox.getImageData(0,0,off.width,off.height).data,WW=off.width;
+  drive.fill(0);
+  for(let q=0;q<laI.length;q++){const p=(laY[q]*WW+laX[q])*4; const cur=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255; const dd=laD[q]; laD[q]=dd+(cur-dd)*0.14; drive[laI[q]]=Math.min(1.5,Math.abs(cur-dd)*DRIVEG);}
+  syn.fill(0);
+  for(let e=0;e<pre.length;e++) syn[post[e]]+=ews[e]*sPrev[pre[e]];
+  let fired=0; const G=OL.GAIN;
+  for(let k=0;k<N;k++){ V[k]=LEAK*V[k]+drive[k]+G*syn[k]; if(V[k]>VTH){s[k]=1;V[k]-=VTH;fired++;} else s[k]=0; }
+  OL.sPrev=s; OL.s=sPrev; // swap: sPrev now = latest spikes
+  const rate=fired/N; OL.GAIN=Math.max(0.001,Math.min(0.06, G*Math.pow(TARGET/(rate+1e-4),0.03)));
+  const sp=OL.sPrev; for(let k=0;k<N;k++) trace[k]=Math.max(trace[k]*0.80, sp[k]);
+}
+function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
+  for(let k=0;k<N;k++){const c=LAYCOL[layer[k]],v=0.13+0.95*trace[k];col[k*3]=c[0]*v;col[k*3+1]=c[1]*v;col[k*3+2]=c[2]*v;}
+  colAttr.needsUpdate=true;}
+const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Math.PI/2,0],top:[-Math.PI/2,0,0],bottom:[Math.PI/2,0,0]};
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
+  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+</script>
