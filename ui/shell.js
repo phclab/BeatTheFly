@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 export const $ = id => document.getElementById(id);
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const MB = n => (n / 1e6).toFixed(1);

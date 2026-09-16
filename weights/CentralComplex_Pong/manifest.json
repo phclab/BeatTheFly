@@ -1,0 +1,435 @@
+{
+ "model": "CentralComplex_Pong",
+ "version": "v1",
+ "label": "CentralComplex_Pong v1",
+ "scalars": {
+  "H": 2950,
+  "vocab": 3,
+  "d_obs": 6,
+  "input": "dense",
+  "n_in": 764,
+  "n_out": 50,
+  "e_cl": -0.5,
+  "drive_alpha": 1.0,
+  "mode": "mech",
+  "nnz": 360336,
+  "dan_teach": 1.0,
+  "lam": 1.0,
+  "mech": true,
+  "n_gate": 123,
+  "fw_edges": 1556,
+  "gate_edges": 793,
+  "decay": true,
+  "gate_label": "dopamine+octopamine+serotonin",
+  "gate_types": {
+   "dopamine": 22,
+   "octopamine": 18,
+   "serotonin": 83
+  },
+  "gate_type_edges": {
+   "dopamine": 427,
+   "octopamine": 15,
+   "serotonin": 351
+  },
+  "input_label": "ER ring (landmark/visual) + PFN (self-motion via NO) + ExR",
+  "output_label": "PFL1/2/3 (steering -> LAL)",
+  "region": "CX_all"
+ },
+ "variants": {
+  "fp16w32": {
+   "enc_obs_T": {
+    "file": "fp32/enc_obs_T.bin",
+    "dtype": "float32",
+    "shape": [
+     6,
+     2950
+    ],
+    "bytes": 70800
+   },
+   "enc_obs_b": {
+    "file": "fp32/enc_obs_b.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "ln_obs_w": {
+    "file": "fp32/ln_obs_w.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "ln_obs_b": {
+    "file": "fp32/ln_obs_b.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "teach_T": {
+    "file": "fp32/teach_T.bin",
+    "dtype": "float32",
+    "shape": [
+     6,
+     123
+    ],
+    "bytes": 2952
+   },
+   "teach_b": {
+    "file": "fp32/teach_b.bin",
+    "dtype": "float32",
+    "shape": [
+     123
+    ],
+    "bytes": 492
+   },
+   "W_gate": {
+    "file": "fp32/W_gate.bin",
+    "dtype": "float32",
+    "shape": [
+     50,
+     123
+    ],
+    "bytes": 24600
+   },
+   "W_val": {
+    "file": "fp32/W_val.bin",
+    "dtype": "float32",
+    "shape": [
+     50,
+     123
+    ],
+    "bytes": 24600
+   },
+   "gate_idx": {
+    "file": "fp32/gate_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     123
+    ],
+    "bytes": 492
+   },
+   "fw_in": {
+    "file": "fp32/fw_in.bin",
+    "dtype": "int32",
+    "shape": [
+     1556
+    ],
+    "bytes": 6224
+   },
+   "fw_out": {
+    "file": "fp32/fw_out.bin",
+    "dtype": "int32",
+    "shape": [
+     1556
+    ],
+    "bytes": 6224
+   },
+   "gamma": {
+    "file": "fp32/gamma.bin",
+    "dtype": "float32",
+    "shape": [
+     50
+    ],
+    "bytes": 200
+   },
+   "dec_w": {
+    "file": "fp16/dec_w.bin",
+    "dtype": "float16",
+    "shape": [
+     3,
+     50
+    ],
+    "bytes": 300
+   },
+   "dec_b": {
+    "file": "fp32/dec_b.bin",
+    "dtype": "float32",
+    "shape": [
+     3
+    ],
+    "bytes": 12
+   },
+   "alpha_exc": {
+    "file": "fp32/alpha_exc.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "alpha_inh": {
+    "file": "fp32/alpha_inh.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "v_th": {
+    "file": "fp32/v_th.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "reset_weight": {
+    "file": "fp32/reset_weight.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "in_idx": {
+    "file": "fp32/in_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     764
+    ],
+    "bytes": 3056
+   },
+   "out_idx": {
+    "file": "fp32/out_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     50
+    ],
+    "bytes": 200
+   },
+   "W_colptr": {
+    "file": "fp32/W_colptr.bin",
+    "dtype": "uint32",
+    "shape": [
+     2951
+    ],
+    "bytes": 11804
+   },
+   "W_rowidx": {
+    "file": "fp32/W_rowidx.bin",
+    "dtype": "uint16",
+    "shape": [
+     360336
+    ],
+    "bytes": 720672
+   },
+   "W_vals": {
+    "file": "fp32/W_vals.bin",
+    "dtype": "float32",
+    "shape": [
+     360336
+    ],
+    "bytes": 1441344
+   }
+  },
+  "fp16": {
+   "enc_obs_T": {
+    "file": "fp32/enc_obs_T.bin",
+    "dtype": "float32",
+    "shape": [
+     6,
+     2950
+    ],
+    "bytes": 70800
+   },
+   "enc_obs_b": {
+    "file": "fp32/enc_obs_b.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "ln_obs_w": {
+    "file": "fp32/ln_obs_w.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "ln_obs_b": {
+    "file": "fp32/ln_obs_b.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "teach_T": {
+    "file": "fp32/teach_T.bin",
+    "dtype": "float32",
+    "shape": [
+     6,
+     123
+    ],
+    "bytes": 2952
+   },
+   "teach_b": {
+    "file": "fp32/teach_b.bin",
+    "dtype": "float32",
+    "shape": [
+     123
+    ],
+    "bytes": 492
+   },
+   "W_gate": {
+    "file": "fp32/W_gate.bin",
+    "dtype": "float32",
+    "shape": [
+     50,
+     123
+    ],
+    "bytes": 24600
+   },
+   "W_val": {
+    "file": "fp32/W_val.bin",
+    "dtype": "float32",
+    "shape": [
+     50,
+     123
+    ],
+    "bytes": 24600
+   },
+   "gate_idx": {
+    "file": "fp32/gate_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     123
+    ],
+    "bytes": 492
+   },
+   "fw_in": {
+    "file": "fp32/fw_in.bin",
+    "dtype": "int32",
+    "shape": [
+     1556
+    ],
+    "bytes": 6224
+   },
+   "fw_out": {
+    "file": "fp32/fw_out.bin",
+    "dtype": "int32",
+    "shape": [
+     1556
+    ],
+    "bytes": 6224
+   },
+   "gamma": {
+    "file": "fp32/gamma.bin",
+    "dtype": "float32",
+    "shape": [
+     50
+    ],
+    "bytes": 200
+   },
+   "dec_w": {
+    "file": "fp16/dec_w.bin",
+    "dtype": "float16",
+    "shape": [
+     3,
+     50
+    ],
+    "bytes": 300
+   },
+   "dec_b": {
+    "file": "fp32/dec_b.bin",
+    "dtype": "float32",
+    "shape": [
+     3
+    ],
+    "bytes": 12
+   },
+   "alpha_exc": {
+    "file": "fp32/alpha_exc.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "alpha_inh": {
+    "file": "fp32/alpha_inh.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "v_th": {
+    "file": "fp32/v_th.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "reset_weight": {
+    "file": "fp32/reset_weight.bin",
+    "dtype": "float32",
+    "shape": [
+     2950
+    ],
+    "bytes": 11800
+   },
+   "in_idx": {
+    "file": "fp32/in_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     764
+    ],
+    "bytes": 3056
+   },
+   "out_idx": {
+    "file": "fp32/out_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     50
+    ],
+    "bytes": 200
+   },
+   "W_colptr": {
+    "file": "fp32/W_colptr.bin",
+    "dtype": "uint32",
+    "shape": [
+     2951
+    ],
+    "bytes": 11804
+   },
+   "W_rowidx": {
+    "file": "fp32/W_rowidx.bin",
+    "dtype": "uint16",
+    "shape": [
+     360336
+    ],
+    "bytes": 720672
+   },
+   "W_vals": {
+    "file": "fp16/W_vals.bin",
+    "dtype": "float16",
+    "shape": [
+     360336
+    ],
+    "bytes": 720672
+   }
+  }
+ },
+ "connectome_audit": {
+  "connections": 439500,
+  "nonzero_weights": 360336,
+  "off_connectome": 0,
+  "wrong_sign": 0,
+  "excitatory": 1873,
+  "inhibitory": 918,
+  "modulatory": 159
+ },
+ "validation": {
+  "fp16w32": "0 of 27,281,600 spike bits differ from the reference on the same weights (2,048 held-out frames and a 7,200-frame closed-loop game)",
+  "fp16": "0 of 27,281,600 spike bits differ from the reference on the same weights (2,048 held-out frames and a 7,200-frame closed-loop game)"
+ }
+}

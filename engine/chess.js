@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 import { Chess } from '../vendor/chess.esm.js';
 
 const FILES = 'abcdefgh';

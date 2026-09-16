@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 import { FlyRSNN, loadWeights } from './rsnn.js';
 import { GameSession, FrameSession } from './session.js';
 import { openStore, fileKey, modelPrefix, getFile, putFile, markComplete, dropModel, evictOldVersions } from './store.js';

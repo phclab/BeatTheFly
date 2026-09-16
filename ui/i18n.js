@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 const ZH = /^zh/i.test(document.documentElement.lang || '');
 const norm = s => String(s).replace(/\s+/g, ' ').trim();
 const T = ZH ? (await import('./lang_zh-TW.js')).default : null;

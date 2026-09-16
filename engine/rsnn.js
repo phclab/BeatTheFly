@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 const f = Math.fround;
 const EPS_RES = Math.fround(1e-8), EPS_LN = Math.fround(1e-5);
 

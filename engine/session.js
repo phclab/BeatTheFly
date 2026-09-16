@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 export const HIST_MAX = 260;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const r5 = x => Math.round(x * 1e5) / 1e5;

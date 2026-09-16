@@ -1,88 +1,142 @@
-<meta charset="utf-8"><title>Fly's Eye</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly: FlyVision</title>
+<meta name="description" content="FlyVision: see your camera at a fruit fly's compound-eye resolution, with the optic lobe running as a real LIF spiking network on the MaleCNS connectome. Everything runs locally in your browser.">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/FlyVision/">
+<link rel="alternate" hreflang="en" href="https://phclab.github.io/BeatTheFly/FlyVision/">
+<link rel="alternate" hreflang="zh-Hant-TW" href="https://phclab.github.io/BeatTheFly/zh-TW/FlyVision/">
+<link rel="alternate" hreflang="x-default" href="https://phclab.github.io/BeatTheFly/FlyVision/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="zh_TW">
+<meta property="og:title" content="BeatTheFly: FlyVision">
+<meta property="og:description" content="FlyVision: see your camera at a fruit fly's compound-eye resolution, with the optic lobe running as a real LIF spiking network on the MaleCNS connectome. Everything runs locally in your browser.">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/FlyVision/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../ui/app.css">
 <style>
-:root{
-  --bg:#0a0c10; --panel:#0f1319; --line:#1e2632; --ink:#e8ecf2; --mut:#7d8896;
-  --accent:#39d0c8; --on:#ff5a48; --off:#3d7bff; --warn:#e6b23c;
-}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif}
-.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
-.top{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
-h1{font-size:24px;margin:0;letter-spacing:.02em}
-.by{font:600 11px/1 "IBM Plex Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
-.sub{color:var(--mut);font-size:13px;margin:2px 0 16px;max-width:72ch}
-.stage{display:grid;grid-template-columns:1fr 1.35fr;gap:14px}
-@media(max-width:760px){.stage{grid-template-columns:1fr}}
-.cell{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;position:relative;overflow:hidden}
-.cell h2{font:600 12px/1 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:2px 4px 8px}
-canvas{width:100%;height:auto;display:block;border-radius:9px;background:#05070a}
-.cap{position:absolute;left:16px;bottom:14px;font:600 11px "IBM Plex Mono",monospace;color:var(--mut);background:rgba(8,10,14,.6);padding:3px 7px;border-radius:5px;backdrop-filter:blur(3px)}
-.eyelab{position:absolute;top:40px;font:600 10px "IBM Plex Mono",monospace;color:var(--mut);letter-spacing:.1em}
-.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0 6px}
-button{font:600 13px inherit;border:1px solid var(--line);background:#141a22;color:var(--ink);padding:9px 15px;border-radius:9px;cursor:pointer}
-button.go{background:var(--accent);color:#04100f;border-color:var(--accent)}
-button.mode{color:var(--mut)} button.mode[aria-pressed="true"]{color:var(--ink);border-color:var(--accent);background:#0f2320}
-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.status{color:var(--mut);font-size:13px;min-height:1.3em;margin-top:4px}
-.status.err{color:var(--warn)}
-.meta{display:flex;gap:20px;flex-wrap:wrap;color:var(--mut);font:12px "IBM Plex Mono",monospace;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+/* FlyVision page-specific rules only; app.css supplies tokens, header, .card and buttons. */
+.fvwrap{max-width:1180px;margin:0 auto;padding:16px 22px 40px}
+.fvwrap .card{position:relative;margin-bottom:14px}
+.sub{color:var(--dim);font-size:13.5px;margin:0 0 16px;max-width:78ch;line-height:1.55}
+.stage{display:grid;grid-template-columns:1fr 1.35fr;gap:14px;margin-bottom:14px}
+.stage>.card{margin-bottom:0;overflow:hidden}
+.card>canvas{width:100%;height:auto;display:block;border-radius:8px;background:#05080e}
+.cap{position:absolute;left:22px;right:22px;bottom:22px;width:fit-content;max-width:calc(100% - 44px);
+  font:600 11px/1.5 ui-monospace,monospace;color:var(--dim);overflow-wrap:anywhere;
+  background:rgba(7,10,16,.68);padding:3px 7px;border-radius:6px}
+.eyelab{position:absolute;top:44px;font:600 10px ui-monospace,monospace;color:var(--dim);letter-spacing:.1em}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+#status{margin-top:0;margin-bottom:12px;font-size:13px;min-height:22px;color:var(--dim)}
+#status.err{color:var(--warn)}
+.meta{display:flex;gap:20px;flex-wrap:wrap;color:var(--dim);font:12px ui-monospace,monospace;
+  margin:0 0 14px;border-top:1px solid var(--line);padding-top:10px}
 .meta b{color:var(--ink)}
-.foot{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.6}
+.foot{color:var(--dim);font-size:12.5px;margin-top:10px;line-height:1.6}
+/* controls sit above the four panels: camera | fly eye, then brain, then spikes */
+.controls{margin-bottom:12px}
+.controls .bar{margin-bottom:8px}
+.controls .meta{margin-bottom:0}
+.sub{margin-top:14px}
+@media (max-width:760px){.stage{gap:9px;margin-bottom:9px}}
+@media (max-width:600px){
+  .fvwrap{padding:10px 10px 22px}
+  /* canvases keep their aspect but stop turning into tall empty blocks at phone width */
+  .card>canvas{width:auto;max-width:100%;margin:0 auto}
+  /* the top pair stays side by side, so cap them low enough that both fit */
+  .stage{grid-template-columns:1fr 1fr;gap:8px}
+  .stage .card{padding:8px}
+  .stage h2{font-size:10px;letter-spacing:.8px}
+  #cam{max-height:150px} #fly{max-height:150px} #ol{max-height:300px} #raster{max-height:110px}
+  /* half-width panel is too narrow for both labels; the meta row already shows L/R counts */
+  .eyelab{display:none}
+  .controls .bar{gap:5px;margin-bottom:6px}
+  .controls{margin-bottom:9px}
+  .fvwrap .card{padding:10px;margin-bottom:9px}
+  .fvwrap .card h2{margin-bottom:6px}
+  .sub{font-size:13px;line-height:1.5;margin-bottom:10px}
+  .bar{gap:6px;margin-bottom:8px}
+  #status{margin-bottom:8px}
+  .meta{gap:8px 14px;margin-bottom:10px;padding-top:8px}
+  .foot{margin-top:8px;font-size:12px;line-height:1.5}
+  .eyelab{top:34px}
+  .cap{left:14px;right:14px;bottom:14px;max-width:calc(100% - 28px)}
+}
 </style>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 
-<div class="wrap">
-  <div class="top"><h1>🪰 Fly's Eye</h1><span class="by">MaleCNS · both eyes · 1,769 ommatidia</span></div>
-  <p class="sub">See the world dropped to <b>a fruit fly's resolution</b> through your camera — two compound eyes (right 892 + left 877 real ommatidia, from the retinotopic coordinates in the MaleCNS connectome). The right panels show what the optic lobe computes: luminance, lamina ON/OFF contrast, and T4/T5 direction-selective motion. Each eye sees one side; the centre overlap is the binocular zone.</p>
+</head>
+<body>
+<header>
+  <nav class="langs" aria-label="Language"><a href="./" data-lang="en" hreflang="en" aria-current="page">English</a> / <a href="../zh-TW/FlyVision/" data-lang="zh-TW" hreflang="zh-Hant-TW" lang="zh-Hant-TW">正體中文</a></nav>
+  <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
+  <div class="tagline">See the world the way a fruit fly sees it</div>
+  <div class="attrib">Wiring: real fruit fly brain (<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS
+  connectome</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>)
+  <span class="sep">·</span> Optic lobe: 29,013 measured neurons, 316,504 real connectome edges, run as a LIF spiking network</div>
+  <div class="claim">The wiring is measured. The single-neuron dynamics are generic LIF values — there are no trained weights on this page.</div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+<div class="fvwrap">
+  <div class="controls">
+    <div class="bar">
+      <button class="pri" id="start">▶ Start camera</button>
+      <button id="pause">⏸ Pause</button>
+      <button id="m0" class="on" aria-pressed="true">Fly view (luminance)</button>
+      <button id="m1" aria-pressed="false">Lamina ON/OFF</button>
+      <button id="m2" aria-pressed="false">Motion T4/T5</button>
+    </div>
+    <div class="bar viewbar">
+      <button class="sm on" data-view="front" aria-pressed="true">Front</button>
+      <button class="sm" data-view="back" aria-pressed="false">Back</button>
+      <button class="sm" data-view="left" aria-pressed="false">Left</button>
+      <button class="sm" data-view="right" aria-pressed="false">Right</button>
+      <button class="sm" data-view="top" aria-pressed="false">Top</button>
+      <button class="sm" data-view="bottom" aria-pressed="false">Bottom</button>
+    </div>
+    <div class="status" id="status">Press Start camera — video is processed only on your device, never uploaded.</div>
+    <div class="meta">
+      <span>Ommatidia <b id="nOmm">1758</b></span>
+      <span>Eyes <b>L 879 · R 879</b></span>
+      <span>FPS <b id="fps">–</b></span>
+      <span>Mode <b id="modeName">Luminance</b></span>
+    </div>
+  </div>
 
   <div class="stage">
-    <div class="cell"><h2>Your camera</h2><canvas id="cam" width="440" height="440"></canvas><span class="cap" id="capL">raw feed</span></div>
-    <div class="cell"><h2 id="flyTitle">Fly optic lobe (both eyes)</h2><canvas id="fly" width="760" height="440"></canvas>
-      <span class="eyelab" style="left:16px">Left eye L · 877</span><span class="eyelab" style="right:16px">Right eye R · 892</span>
-      <span class="cap" id="capR">1769 ommatidia</span></div>
+    <div class="card"><h2>Your camera</h2><canvas id="cam" width="440" height="440"></canvas><span class="cap" id="capL">raw feed</span></div>
+    <div class="card"><h2 id="flyTitle">Fly optic lobe (both eyes)</h2><canvas id="fly" width="760" height="440"></canvas>
+      <span class="eyelab" style="left:16px">Left eye L · 879</span><span class="eyelab" style="right:16px">Right eye R · 879</span>
+      <span class="cap" id="capR">1758 ommatidia</span></div>
   </div>
 
-  <div class="bar">
-    <button class="go" id="start">▶ Start camera</button>
-    <button class="mode" id="pause">⏸ Pause</button>
-    <button class="mode" id="m0" aria-pressed="true">Fly view (luminance)</button>
-    <button class="mode" id="m1" aria-pressed="false">Lamina ON/OFF</button>
-    <button class="mode" id="m2" aria-pressed="false">Motion T4/T5</button>
-  </div>
-  <div class="status" id="status">Press Start camera — video is processed only on your device, never uploaded.</div>
-
-  <div class="meta">
-    <span>Ommatidia <b id="nOmm">1769</b></span>
-    <span>Eyes <b>L 877 · R 892</b></span>
-    <span>FPS <b id="fps">–</b></span>
-    <span>Mode <b id="modeName">Luminance</b></span>
-  </div>
-  <div class="cell" style="margin-top:14px">
+  <div class="card">
     <h2 id="olTitle">Optic-lobe LIF-RSNN · live spiking · 3D · fixed views</h2>
     <canvas id="ol" width="980" height="700"></canvas>
     <span class="cap" id="olstatus">Loading optic-lobe topology…</span>
   </div>
-  <div class="bar" style="margin-top:8px">
-    <button class="mode" data-view="front" aria-pressed="true">Front</button>
-    <button class="mode" data-view="back" aria-pressed="false">Back</button>
-    <button class="mode" data-view="left" aria-pressed="false">Left</button>
-    <button class="mode" data-view="right" aria-pressed="false">Right</button>
-    <button class="mode" data-view="top" aria-pressed="false">Top</button>
-    <button class="mode" data-view="bottom" aria-pressed="false">Bottom</button>
-  </div>
-  <div class="cell" style="margin-top:14px">
+
+  <div class="card">
     <h2>Spike raster · sampled neurons · LA/ME/LO/LOP</h2>
     <canvas id="raster" width="900" height="200"></canvas>
     <span class="cap">time → (last ~30s) · rows = neurons by layer · dot = spike</span>
   </div>
-  <p class="foot" style="margin-top:8px">Real soma positions of 29,013 optic-lobe neurons (both eyes) from the MaleCNS connectome, in true 3D. Use the view buttons to rotate. Coloured by layer (LA lamina → ME medulla → LO lobula → LOP lobula plate). With the camera on, signal is injected at the lamina and propagates along <b>316,504 real connectome edges</b> (E/I-signed); brightness = activation. Needs local data (phc-pi).</p>
 
-  <p class="foot">Each eye is ~871 ommatidia hex-packed into the fly eye's tall oval outline (real ommatidial count and hexagonal packing; idealized elliptical layout). Left eye takes the left visual field, right eye the right, with ~20% central overlap = binocular zone. ON/OFF = per-ommatidium temporal contrast (lamina L1/L2 channels); motion = delayed correlation between neighbouring ommatidia (Reichardt / T4-T5 direction selectivity) — all real-time approximations of the optic lobe's actual computations. All video is processed locally in the browser.</p>
+  <p class="sub">See the world dropped to <b>a fruit fly's resolution</b> through your camera — two compound eyes of 879 ommatidia each, hex-packed to the fly eye's real ommatidial count and outline. The right panels show what the optic lobe computes: luminance, lamina ON/OFF contrast, and T4/T5 direction-selective motion. Each eye sees one side; the centre overlap is the binocular zone.</p>
+  <p class="foot" style="margin-top:8px">Real soma positions of <b>29,013 optic-lobe neurons</b> (both eyes) from the MaleCNS connectome, in true 3D. Use the view buttons to rotate. Coloured by layer (LA lamina → ME medulla → LO lobula → LOP lobula plate). With the camera on, signal is injected at the lamina and propagates along <b>316,504 real connectome edges</b> (E/I-signed); brightness = activation.</p>
+
+  <p class="foot">Each eye is 879 ommatidia hex-packed into the fly eye's tall oval outline (real ommatidial count and hexagonal packing; idealized elliptical layout). Left eye takes the left visual field, right eye the right, with ~20% central overlap = binocular zone. ON/OFF = per-ommatidium temporal contrast (lamina L1/L2 channels); motion = delayed correlation between neighbouring ommatidia (Reichardt / T4-T5 direction selectivity) — all real-time approximations of the optic lobe's actual computations. All video is processed locally in the browser.</p>
 </div>
 
 <video id="vid" playsinline muted style="display:none"></video>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+window.FV_I18N=window.FV_I18N||{};
+function t(s,v){var d=window.FV_I18N[s]||s;return v?d.replace(/\{(\w+)\}/g,function(m,k){return v[k]!=null?v[k]:m;}):d;}
+</script>
 <script>
 const S3=Math.sqrt(3);
 let EYE_L,EYE_R,NL,NR,N,lum,lumP,lumD,DRAW,SRC,NBR,EYEREADY=false;
@@ -103,7 +157,7 @@ const cam=document.getElementById("cam"), cx=cam.getContext("2d");
 const fly=document.getElementById("fly"), fx=fly.getContext("2d");
 const off=document.createElement("canvas"); off.width=off.height=170; const ox=off.getContext("2d",{willReadFrequently:true});
 let mode=0, running=false, frames=0, fpsT=0, paused=false;
-const MODENAMES=["Luminance","Lamina ON/OFF","Motion T4/T5"];
+const MODENAMES=[t("Luminance"),t("Lamina ON/OFF"),t("Motion T4/T5")];
 const HEX=[]; for(let k=0;k<6;k++){const A=Math.PI/180*(60*k-90);HEX.push([Math.cos(A),Math.sin(A)]);}
 function hexPath(ctx,px,py,r){ctx.beginPath();for(let k=0;k<6;k++){const x=px+r*HEX[k][0],y=py+r*HEX[k][1];k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}
 function layout(){
@@ -154,32 +208,32 @@ function drawFly(){
       col="hsla("+hue+",85%,"+(18+mag*42)+"%,"+(0.14+mag)+")";}
     fx.fillStyle=col; hexPath(fx,px,py,r); fx.fill(); } }
 function loop(t){ if(!running)return; if(paused){requestAnimationFrame(loop);return;} sample(); drawCam(); drawFly();
-  frames++; if(t-fpsT>500){document.getElementById("fps").textContent=Math.round(frames*1000/(t-fpsT))+" fps";frames=0;fpsT=t;}
+  frames++; if(t-fpsT>500){document.getElementById("fps").textContent=window.t("{n} fps",{n:Math.round(frames*1000/(t-fpsT))});frames=0;fpsT=t;}
   requestAnimationFrame(loop);}
 async function start(){
   const st=document.getElementById("status");
-  if(!EYEREADY){st.textContent="Loading eye geometry…";return;}
-  try{ st.className="status"; st.textContent="Requesting camera…";
+  if(!EYEREADY){st.textContent=t("Loading eye geometry…");return;}
+  try{ st.className="status"; st.textContent=t("Requesting camera…");
     const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
     vid.srcObject=stream; await vid.play(); running=true; fpsT=performance.now(); requestAnimationFrame(loop);
-    st.textContent="The fly is watching you — move to light up motion in both eyes"; document.getElementById("start").textContent="⏹ Camera on";
+    st.textContent=t("The fly is watching you — move to light up motion in both eyes"); document.getElementById("start").textContent=t("⏹ Camera on");
   }catch(e){ st.className="status err";
-    st.textContent="Cannot open camera: "+(e&&e.name||e)+". If blocked by the shared-page sandbox, open this page locally instead."; } }
-function stopCam(){ if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null;} running=false; document.getElementById("start").textContent="▶ Start camera"; document.getElementById("status").textContent="Camera off"; drawRest(); }
+    st.textContent=t("Cannot open camera: {err}. If blocked by the shared-page sandbox, open this page locally instead.",{err:(e&&e.name||e)}); } }
+function stopCam(){ if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null;} running=false; document.getElementById("start").textContent=t("▶ Start camera"); document.getElementById("status").textContent=t("Camera off"); drawRest(); }
 document.getElementById("start").onclick=()=>{ if(running) stopCam(); else start(); };
 function setMode(m){mode=m;document.getElementById("modeName").textContent=MODENAMES[m];
-  ["m0","m1","m2"].forEach((id,k)=>document.getElementById(id).setAttribute("aria-pressed",k===m));
-  document.getElementById("capR").textContent=[(N||"")+" ommatidia · luminance","Lamina L1/L2 · temporal contrast","T4/T5 · direction-selective motion"][m];
-  document.getElementById("flyTitle").textContent=["Fly optic lobe · luminance","Fly optic lobe · ON/OFF","Fly optic lobe · motion"][m];}
+  ["m0","m1","m2"].forEach((id,k)=>{var el=document.getElementById(id);el.setAttribute("aria-pressed",k===m);el.classList.toggle("on",k===m);});
+  document.getElementById("capR").textContent=[t("{n} ommatidia · luminance",{n:(N||"")}),t("Lamina L1/L2 · temporal contrast"),t("T4/T5 · direction-selective motion")][m];
+  document.getElementById("flyTitle").textContent=[t("Fly optic lobe · luminance"),t("Fly optic lobe · ON/OFF"),t("Fly optic lobe · motion")][m];}
 document.getElementById("m0").onclick=()=>setMode(0);
 document.getElementById("m1").onclick=()=>setMode(1);
 document.getElementById("m2").onclick=()=>setMode(2);
-document.getElementById("pause").onclick=()=>{paused=!paused;document.getElementById("pause").textContent=paused?"▶ Resume":"⏸ Pause";};
+document.getElementById("pause").onclick=()=>{paused=!paused;document.getElementById("pause").textContent=paused?t("▶ Resume"):t("⏸ Pause");};
 function drawRest(){const r=window._rad;fx.clearRect(0,0,fly.width,fly.height);
-  for(let i=0;i<N;i++){fx.fillStyle="rgba(57,208,200,.16)";hexPath(fx,DRAW[i*2],DRAW[i*2+1],r);fx.fill();}
-  cx.fillStyle="#05070a";cx.fillRect(0,0,cam.width,cam.height);
-  cx.fillStyle="#39d0c8";cx.font='600 15px "IBM Plex Mono",monospace';cx.textAlign="center";
-  cx.fillText("Press ▶ Start camera",cam.width/2,cam.height/2);}
+  for(let i=0;i<N;i++){fx.fillStyle="rgba(90,209,255,.16)";hexPath(fx,DRAW[i*2],DRAW[i*2+1],r);fx.fill();}
+  cx.fillStyle="#05080e";cx.fillRect(0,0,cam.width,cam.height);
+  cx.fillStyle="#5ad1ff";cx.font='600 15px ui-monospace,monospace';cx.textAlign="center";
+  cx.fillText(t("Press ▶ Start camera"),cam.width/2,cam.height/2);}
 function makeOval(nApprox,aspect){
   let A=Math.sqrt(nApprox*S3*1.5/(Math.PI*aspect)); const B=A*aspect;
   const xs=[],ys=[], rmax=Math.ceil(B/1.5)+2, cmax=Math.ceil(A/S3)+2;
@@ -196,8 +250,8 @@ function makeOval(nApprox,aspect){
   DRAW=new Float32Array(N*2); SRC=new Float32Array(N*2); NBR=new Int32Array(N*2);
   layout(); EYEREADY=true; drawRest();
   document.getElementById("nOmm").textContent=N;
-  const el=document.querySelectorAll('.eyelab'); if(el[0])el[0].textContent="Left eye L · "+NL; if(el[1])el[1].textContent="Right eye R · "+NR;
-  document.getElementById("capR").textContent=N+" ommatidia";
+  const el=document.querySelectorAll('.eyelab'); if(el[0])el[0].textContent=t("Left eye L · {n}",{n:NL}); if(el[1])el[1].textContent=t("Right eye R · {n}",{n:NR});
+  document.getElementById("capR").textContent=t("{n} ommatidia",{n:N});
 })();
 const olc=document.getElementById("ol"), OLstat=document.getElementById("olstatus");
 const OL={ready:false,rsnnReady:false,GAIN:0.012}; let olf=0;
@@ -215,9 +269,10 @@ function centerScale(x,y,z,N){let cx=0,cy=0,cz=0;for(let k=0;k<N;k++){cx+=x[k];c
   let mr=1e-6;for(let k=0;k<N;k++){const m=Math.max(Math.abs(x[k]-cx),Math.abs(y[k]-cy),Math.abs(z[k]-cz));if(m>mr)mr=m;}
   const pos=new Float32Array(N*3),s=1/mr;for(let k=0;k<N;k++){pos[k*3]=(x[k]-cx)*s;pos[k*3+1]=(y[k]-cy)*s;pos[k*3+2]=(z[k]-cz)*s;}return pos;}
 let RN,SCENE,CAM,GRP;
-function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent="three.js failed to load (CDN blocked)";return false;}
+function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent=t("three.js failed to load (CDN blocked)");return false;}
   const W=olc.width,H=olc.height;
-  RN=new THREE.WebGLRenderer({canvas:olc,antialias:true}); RN.setSize(W,H,false); RN.setClearColor(0x070a0e,1);
+  try{ RN=new THREE.WebGLRenderer({canvas:olc,antialias:true}); }catch(e){ OLstat.textContent=t("The 3D optic lobe needs WebGL, which this browser does not provide. The camera view, the ommatidia panels and the mode buttons above still work."); return false; }
+  RN.setSize(W,H,false); RN.setClearColor(0x070a0e,1);
   SCENE=new THREE.Scene(); SCENE.fog=new THREE.FogExp2(0x070a0e,0.20);
   CAM=new THREE.PerspectiveCamera(45,W/H,0.01,100); CAM.position.set(0,0,1.95);
   GRP=new THREE.Group(); SCENE.add(GRP);
@@ -241,19 +296,19 @@ if(initScene()){
     Object.assign(OL,{N,layer,col,colAttr,laI:Int32Array.from(laI),laX:Int32Array.from(laX),laY:Int32Array.from(laY),laD:new Float32Array(laI.length),
       V:new Float32Array(N),s:new Float32Array(N),sPrev:new Float32Array(N),trace:new Float32Array(N),drive:new Float32Array(N),syn:new Float32Array(N)});
     (function(){const rc=document.getElementById("raster"); if(!rc)return; const rctx=rc.getContext("2d",{willReadFrequently:true});
-      rctx.fillStyle="#05070a"; rctx.fillRect(0,0,rc.width,rc.height);
+      rctx.fillStyle="#05080e"; rctx.fillRect(0,0,rc.width,rc.height);
       const perL=[[],[],[],[]]; for(let k=0;k<N;k++)perL[layer[k]].push(k);
       const idx=[],lay=[],want=48; for(let L=0;L<4;L++){const arr=perL[L],st=Math.max(1,Math.floor(arr.length/want)); for(let a=0;a<arr.length&&lay.filter(x=>x===L).length<want;a+=st){idx.push(arr[a]);lay.push(L);}}
       OL.rcanvas=rc; OL.rctx=rctx; OL.rw=rc.width; OL.rh=rc.height; OL.sampleIdx=Int32Array.from(idx); OL.sampleLayer=Int8Array.from(lay);})();
-    OLstat.textContent=N.toLocaleString()+" LIF neurons · loading edges + E/I…";
+    OLstat.textContent=t("{n} LIF neurons · loading edges + E/I…",{n:N.toLocaleString()});
     Promise.all([fetch("edges_ol_both.json").then(r=>r.json()),fetch("sign_ol.json").then(r=>r.json())]).then(([ed,sg])=>{
       const pre=new Int32Array(b64(ed.pre).buffer),post=new Int32Array(b64(ed.post).buffer),w=new Uint8Array(b64(ed.w).buffer);
       const sign=Int8Array.from(sg.sign), M=pre.length, ews=new Float32Array(M);
       for(let e=0;e<M;e++) ews[e]=w[e]*sign[pre[e]];
       Object.assign(OL,{pre,post,ews,sign}); OL.rsnnReady=true;
-      OLstat.textContent=OL.N.toLocaleString()+" LIF neurons · "+M.toLocaleString()+" edges (E 75% / I 25%) · start camera";
-    }).catch(e=>{OLstat.textContent="edges/sign not loaded: "+e;});
-  }).catch(e=>{OLstat.textContent="Optic-lobe soma not loaded (needs phc-pi local): "+e;});
+      OLstat.textContent=t("{n} LIF neurons · {m} edges (E 75% / I 25%) · start camera",{n:OL.N.toLocaleString(),m:M.toLocaleString()});
+    }).catch(e=>{OLstat.textContent=t("edges/sign not loaded: {err}",{err:e});});
+  }).catch(e=>{OLstat.textContent=t("Optic-lobe soma not loaded: {err}",{err:e});});
 }
 function stepRSNN(){
   const {N,layer,pre,post,ews,laI,laX,laY,laD,V,s,sPrev,trace,drive,syn}=OL;
@@ -269,12 +324,14 @@ function stepRSNN(){
   const sp=OL.sPrev; for(let k=0;k<N;k++) trace[k]=Math.max(trace[k]*0.80, sp[k]);
 }
 function drawRaster(){const rc=OL.rctx; if(!rc)return; const W=OL.rw,H=OL.rh,sp=OL.sPrev,idx=OL.sampleIdx,lay=OL.sampleLayer,n=idx.length,rowH=H/n;
-  rc.drawImage(OL.rcanvas,-2,0); rc.fillStyle="#05070a"; rc.fillRect(W-2,0,2,H);
+  rc.drawImage(OL.rcanvas,-2,0); rc.fillStyle="#05080e"; rc.fillRect(W-2,0,2,H);
   for(let r=0;r<n;r++){ if(sp[idx[r]]>0.5){ const c=LAYCOL[lay[r]]; rc.fillStyle="rgb("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+")"; rc.fillRect(W-2,r*rowH,2,Math.max(1.2,rowH));}}}
 function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
   for(let k=0;k<N;k++){const c=LAYCOL[layer[k]],v=0.13+0.95*trace[k];col[k*3]=c[0]*v;col[k*3+1]=c[1]*v;col[k*3+2]=c[2]*v;}
   colAttr.needsUpdate=true;}
 const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Math.PI/2,0],top:[-Math.PI/2,0,0],bottom:[Math.PI/2,0,0]};
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
-  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+  document.querySelectorAll('[data-view]').forEach(x=>{x.setAttribute('aria-pressed',x===b);x.classList.toggle('on',x===b);});}));
 </script>
+</body>
+</html>

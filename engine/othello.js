@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 const FILES = 'abcdefgh';
 const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const EDGES = [8, 16, 24, 32, 40, 48, 56];

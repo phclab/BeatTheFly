@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
 const DB_NAME = 'beatthefly-weights', DB_VER = 1, ROOT = 'https://cache.local/';
 
 export const modelPrefix = (model, version, prec) => `${ROOT}${model}/${version}/${prec}/`;

@@ -1,0 +1,435 @@
+{
+ "model": "MushroomBody_Chess",
+ "version": "v2",
+ "label": "MushroomBody_Chess v2",
+ "scalars": {
+  "H": 4510,
+  "vocab": 1970,
+  "d_board": 789,
+  "n_kc": 4064,
+  "n_mbon": 97,
+  "n_dan": 340,
+  "e_cl": -0.5,
+  "drive_alpha": 1.0,
+  "dan_teach": 1.0,
+  "lam": 1.0,
+  "use_tok": 1.0,
+  "use_board": 1.0,
+  "nnz": 828479
+ },
+ "variants": {
+  "fp16w32": {
+   "enc_tok_T": {
+    "file": "fp16/enc_tok_T.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     4510
+    ],
+    "bytes": 17769400
+   },
+   "enc_tok_b": {
+    "file": "fp32/enc_tok_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_tok_w": {
+    "file": "fp32/ln_tok_w.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_tok_b": {
+    "file": "fp32/ln_tok_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "enc_brd_T": {
+    "file": "fp16/enc_brd_T.bin",
+    "dtype": "float16",
+    "shape": [
+     789,
+     4510
+    ],
+    "bytes": 7116780
+   },
+   "enc_brd_b": {
+    "file": "fp32/enc_brd_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_brd_w": {
+    "file": "fp32/ln_brd_w.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_brd_b": {
+    "file": "fp32/ln_brd_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "v2d_T": {
+    "file": "fp16/v2d_T.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     340
+    ],
+    "bytes": 1339600
+   },
+   "v2d_b": {
+    "file": "fp32/v2d_b.bin",
+    "dtype": "float32",
+    "shape": [
+     340
+    ],
+    "bytes": 1360
+   },
+   "dec_w": {
+    "file": "fp16/dec_w.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     4510
+    ],
+    "bytes": 17769400
+   },
+   "dec_b": {
+    "file": "fp32/dec_b.bin",
+    "dtype": "float32",
+    "shape": [
+     1970
+    ],
+    "bytes": 7880
+   },
+   "Wg": {
+    "file": "fp32/Wg.bin",
+    "dtype": "float32",
+    "shape": [
+     97,
+     340
+    ],
+    "bytes": 131920
+   },
+   "W_dan_val": {
+    "file": "fp32/W_dan_val.bin",
+    "dtype": "float32",
+    "shape": [
+     97,
+     340
+    ],
+    "bytes": 131920
+   },
+   "alpha_exc": {
+    "file": "fp32/alpha_exc.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "alpha_inh": {
+    "file": "fp32/alpha_inh.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "v_th": {
+    "file": "fp32/v_th.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "reset_weight": {
+    "file": "fp32/reset_weight.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "kc_idx": {
+    "file": "fp32/kc_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     4064
+    ],
+    "bytes": 16256
+   },
+   "mbon_idx": {
+    "file": "fp32/mbon_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     97
+    ],
+    "bytes": 388
+   },
+   "dan_idx": {
+    "file": "fp32/dan_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     340
+    ],
+    "bytes": 1360
+   },
+   "W_colptr": {
+    "file": "fp32/W_colptr.bin",
+    "dtype": "uint32",
+    "shape": [
+     4511
+    ],
+    "bytes": 18044
+   },
+   "W_rowidx": {
+    "file": "fp32/W_rowidx.bin",
+    "dtype": "uint16",
+    "shape": [
+     828479
+    ],
+    "bytes": 1656958
+   },
+   "W_vals": {
+    "file": "fp32/W_vals.bin",
+    "dtype": "float32",
+    "shape": [
+     828479
+    ],
+    "bytes": 3313916
+   }
+  },
+  "fp16": {
+   "enc_tok_T": {
+    "file": "fp16/enc_tok_T.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     4510
+    ],
+    "bytes": 17769400
+   },
+   "enc_tok_b": {
+    "file": "fp32/enc_tok_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_tok_w": {
+    "file": "fp32/ln_tok_w.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_tok_b": {
+    "file": "fp32/ln_tok_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "enc_brd_T": {
+    "file": "fp16/enc_brd_T.bin",
+    "dtype": "float16",
+    "shape": [
+     789,
+     4510
+    ],
+    "bytes": 7116780
+   },
+   "enc_brd_b": {
+    "file": "fp32/enc_brd_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_brd_w": {
+    "file": "fp32/ln_brd_w.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "ln_brd_b": {
+    "file": "fp32/ln_brd_b.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "v2d_T": {
+    "file": "fp16/v2d_T.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     340
+    ],
+    "bytes": 1339600
+   },
+   "v2d_b": {
+    "file": "fp32/v2d_b.bin",
+    "dtype": "float32",
+    "shape": [
+     340
+    ],
+    "bytes": 1360
+   },
+   "dec_w": {
+    "file": "fp16/dec_w.bin",
+    "dtype": "float16",
+    "shape": [
+     1970,
+     4510
+    ],
+    "bytes": 17769400
+   },
+   "dec_b": {
+    "file": "fp32/dec_b.bin",
+    "dtype": "float32",
+    "shape": [
+     1970
+    ],
+    "bytes": 7880
+   },
+   "Wg": {
+    "file": "fp32/Wg.bin",
+    "dtype": "float32",
+    "shape": [
+     97,
+     340
+    ],
+    "bytes": 131920
+   },
+   "W_dan_val": {
+    "file": "fp32/W_dan_val.bin",
+    "dtype": "float32",
+    "shape": [
+     97,
+     340
+    ],
+    "bytes": 131920
+   },
+   "alpha_exc": {
+    "file": "fp32/alpha_exc.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "alpha_inh": {
+    "file": "fp32/alpha_inh.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "v_th": {
+    "file": "fp32/v_th.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "reset_weight": {
+    "file": "fp32/reset_weight.bin",
+    "dtype": "float32",
+    "shape": [
+     4510
+    ],
+    "bytes": 18040
+   },
+   "kc_idx": {
+    "file": "fp32/kc_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     4064
+    ],
+    "bytes": 16256
+   },
+   "mbon_idx": {
+    "file": "fp32/mbon_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     97
+    ],
+    "bytes": 388
+   },
+   "dan_idx": {
+    "file": "fp32/dan_idx.bin",
+    "dtype": "int32",
+    "shape": [
+     340
+    ],
+    "bytes": 1360
+   },
+   "W_colptr": {
+    "file": "fp32/W_colptr.bin",
+    "dtype": "uint32",
+    "shape": [
+     4511
+    ],
+    "bytes": 18044
+   },
+   "W_rowidx": {
+    "file": "fp32/W_rowidx.bin",
+    "dtype": "uint16",
+    "shape": [
+     828479
+    ],
+    "bytes": 1656958
+   },
+   "W_vals": {
+    "file": "fp16/W_vals.bin",
+    "dtype": "float16",
+    "shape": [
+     828479
+    ],
+    "bytes": 1656958
+   }
+  }
+ },
+ "connectome_audit": {
+  "connections": 1027152,
+  "nonzero_weights": 828479,
+  "off_connectome": 0,
+  "wrong_sign": 0,
+  "excitatory": 4114,
+  "inhibitory": 52,
+  "modulatory": 344
+ },
+ "validation": {
+  "fp16w32": "legal top-1 1968/1973 vs the fp32 reference (24 held-out games); 0 of 8,925,290 spike bits differ from the reference on the same weights",
+  "fp16": "legal top-1 1969/1973 vs the fp32 reference (24 held-out games); 0 of 8,925,290 spike bits differ from the reference on the same weights"
+ }
+}

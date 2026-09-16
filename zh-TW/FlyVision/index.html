@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BeatTheFly：FlyVision</title>
+<meta name="description" content="FlyVision：把你的攝影機畫面降到果蠅複眼的解析度，視葉以真實的 LIF 脈衝網路在 MaleCNS 連接組上運行。全部在你的瀏覽器中執行。">
+<link rel="canonical" href="https://phclab.github.io/BeatTheFly/zh-TW/FlyVision/">
+<link rel="alternate" hreflang="en" href="https://phclab.github.io/BeatTheFly/FlyVision/">
+<link rel="alternate" hreflang="zh-Hant-TW" href="https://phclab.github.io/BeatTheFly/zh-TW/FlyVision/">
+<link rel="alternate" hreflang="x-default" href="https://phclab.github.io/BeatTheFly/FlyVision/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:title" content="BeatTheFly：FlyVision">
+<meta property="og:description" content="FlyVision：把你的攝影機畫面降到果蠅複眼的解析度，視葉以真實的 LIF 脈衝網路在 MaleCNS 連接組上運行。全部在你的瀏覽器中執行。">
+<meta property="og:url" content="https://phclab.github.io/BeatTheFly/zh-TW/FlyVision/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../../ui/app.css">
+<style>
+/* FlyVision page-specific rules only; app.css supplies tokens, header, .card and buttons. */
+.fvwrap{max-width:1180px;margin:0 auto;padding:16px 22px 40px}
+.fvwrap .card{position:relative;margin-bottom:14px}
+.sub{color:var(--dim);font-size:13.5px;margin:0 0 16px;max-width:78ch;line-height:1.55}
+.stage{display:grid;grid-template-columns:1fr 1.35fr;gap:14px;margin-bottom:14px}
+.stage>.card{margin-bottom:0;overflow:hidden}
+.card>canvas{width:100%;height:auto;display:block;border-radius:8px;background:#05080e}
+.cap{position:absolute;left:22px;right:22px;bottom:22px;width:fit-content;max-width:calc(100% - 44px);
+  font:600 11px/1.5 ui-monospace,monospace;color:var(--dim);overflow-wrap:anywhere;
+  background:rgba(7,10,16,.68);padding:3px 7px;border-radius:6px}
+.eyelab{position:absolute;top:44px;font:600 10px ui-monospace,monospace;color:var(--dim);letter-spacing:.1em}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+#status{margin-top:0;margin-bottom:12px;font-size:13px;min-height:22px;color:var(--dim)}
+#status.err{color:var(--warn)}
+.meta{display:flex;gap:20px;flex-wrap:wrap;color:var(--dim);font:12px ui-monospace,monospace;
+  margin:0 0 14px;border-top:1px solid var(--line);padding-top:10px}
+.meta b{color:var(--ink)}
+.foot{color:var(--dim);font-size:12.5px;margin-top:10px;line-height:1.6}
+/* controls sit above the four panels: camera | fly eye, then brain, then spikes */
+.controls{margin-bottom:12px}
+.controls .bar{margin-bottom:8px}
+.controls .meta{margin-bottom:0}
+.sub{margin-top:14px}
+@media (max-width:760px){.stage{gap:9px;margin-bottom:9px}}
+@media (max-width:600px){
+  .fvwrap{padding:10px 10px 22px}
+  /* canvases keep their aspect but stop turning into tall empty blocks at phone width */
+  .card>canvas{width:auto;max-width:100%;margin:0 auto}
+  /* the top pair stays side by side, so cap them low enough that both fit */
+  .stage{grid-template-columns:1fr 1fr;gap:8px}
+  .stage .card{padding:8px}
+  .stage h2{font-size:10px;letter-spacing:.8px}
+  #cam{max-height:150px} #fly{max-height:150px} #ol{max-height:300px} #raster{max-height:110px}
+  /* half-width panel is too narrow for both labels; the meta row already shows L/R counts */
+  .eyelab{display:none}
+  .controls .bar{gap:5px;margin-bottom:6px}
+  .controls{margin-bottom:9px}
+  .fvwrap .card{padding:10px;margin-bottom:9px}
+  .fvwrap .card h2{margin-bottom:6px}
+  .sub{font-size:13px;line-height:1.5;margin-bottom:10px}
+  .bar{gap:6px;margin-bottom:8px}
+  #status{margin-bottom:8px}
+  .meta{gap:8px 14px;margin-bottom:10px;padding-top:8px}
+  .foot{margin-top:8px;font-size:12px;line-height:1.5}
+  .eyelab{top:34px}
+  .cap{left:14px;right:14px;bottom:14px;max-width:calc(100% - 28px)}
+}
+</style>
+
+</head>
+<body>
+<header>
+  <nav class="langs" aria-label="語言"><a href="../../FlyVision/" data-lang="en" hreflang="en">English</a> / <a href="./" data-lang="zh-TW" hreflang="zh-Hant-TW" lang="zh-Hant-TW" aria-current="page">正體中文</a></nav>
+  <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
+  <div class="tagline">用果蠅的眼睛看世界</div>
+  <div class="attrib">接線：真實果蠅腦（<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener">MaleCNS 連接組</a>，<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC-BY-4.0</a>）<span class="sep">·</span> 視葉：29,013 個實測神經元、316,504 條真實連接組連線，以 LIF 脈衝網路運行</div>
+  <div class="claim">接線是實測的。單一神經元的動力學是通用的 LIF 參數——這個頁面沒有任何訓練出來的權重。</div>
+  <div class="byline">made by Po-Han Chiang @ NYCU</div>
+</header>
+<div class="fvwrap">
+  <div class="controls">
+    <div class="bar">
+      <button class="pri" id="start">▶ 啟動攝影機</button>
+      <button id="pause">⏸ 暫停</button>
+      <button id="m0" class="on" aria-pressed="true">果蠅視角（亮度）</button>
+      <button id="m1" aria-pressed="false">板層 ON/OFF</button>
+      <button id="m2" aria-pressed="false">運動 T4/T5</button>
+    </div>
+    <div class="bar viewbar">
+      <button class="sm on" data-view="front" aria-pressed="true">正面</button>
+      <button class="sm" data-view="back" aria-pressed="false">背面</button>
+      <button class="sm" data-view="left" aria-pressed="false">左側</button>
+      <button class="sm" data-view="right" aria-pressed="false">右側</button>
+      <button class="sm" data-view="top" aria-pressed="false">上方</button>
+      <button class="sm" data-view="bottom" aria-pressed="false">下方</button>
+    </div>
+    <div class="status" id="status">按「▶ 啟動攝影機」——影像只在你的裝置上處理，不會上傳。</div>
+    <div class="meta">
+      <span>小眼 <b id="nOmm">1758</b></span>
+      <span>雙眼 <b>左 879 · 右 879</b></span>
+      <span>幀率 <b id="fps">–</b></span>
+      <span>模式 <b id="modeName">亮度</b></span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="card"><h2>你的攝影機</h2><canvas id="cam" width="440" height="440"></canvas><span class="cap" id="capL">原始畫面</span></div>
+    <div class="card"><h2 id="flyTitle">果蠅視葉（雙眼）</h2><canvas id="fly" width="760" height="440"></canvas>
+      <span class="eyelab" style="left:16px">左眼 L · 879</span><span class="eyelab" style="right:16px">右眼 R · 879</span>
+      <span class="cap" id="capR">1758 個小眼</span></div>
+  </div>
+
+  <div class="card">
+    <h2 id="olTitle">視葉 LIF-RSNN · 即時脈衝 · 3D · 固定視角</h2>
+    <canvas id="ol" width="980" height="700"></canvas>
+    <span class="cap" id="olstatus">正在載入視葉拓樸…</span>
+  </div>
+
+  <div class="card">
+    <h2>脈衝散點圖 · 取樣神經元 · LA/ME/LO/LOP</h2>
+    <canvas id="raster" width="900" height="200"></canvas>
+    <span class="cap">時間 →（最近約 30 秒）· 每列為一個神經元，依層排列 · 點 = 脈衝</span>
+  </div>
+
+  <p class="sub">透過你的攝影機，看世界被降到<b>果蠅的解析度</b>——兩隻複眼各 879 個小眼，依果蠅複眼真實的小眼數量與外形做六角密排。右側面板顯示視葉算出來的東西：亮度、板層 ON/OFF 對比，以及 T4/T5 方向選擇性運動。每隻眼睛負責一側，中央重疊區即雙眼視區。</p>
+  <p class="foot" style="margin-top:8px">取自 MaleCNS 連接組的 <b>29,013 個視葉神經元</b>（雙眼）真實胞體位置，真實 3D。請用視角按鈕旋轉。顏色依層別（LA 板層 → ME 髓質 → LO 小葉 → LOP 小葉板）。攝影機開啟時，訊號從板層注入，並沿著 <b>316,504 條真實連接組連線</b>（帶興奮／抑制符號）傳遞；亮度＝活化程度。</p>
+
+  <p class="foot">每隻眼睛 879 個小眼，以六角密排排進果蠅眼睛的高橢圓輪廓（小眼數量與六角排列為真實值，橢圓版面為理想化）。左眼負責左側視野，右眼負責右側視野，中央約 20% 重疊即雙眼視區。ON/OFF＝每個小眼的時間對比（板層 L1/L2 通道）；運動＝相鄰小眼之間的延遲相關（Reichardt／T4-T5 方向選擇性）——都是視葉真實運算的即時近似。所有影像都在瀏覽器本機處理。</p>
+</div>
+
+<video id="vid" playsinline muted style="display:none"></video>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+window.FV_I18N={"Strength:": "棋力：", ".": "。", "Promote on {sq}": "在 {sq} 升變", "queen": "皇后", "rook": "城堡", "bishop": "主教", "knight": "騎士", "rejected: {msg}": "已拒絕：{msg}", "No moves yet. Fly moves are shown in gold.": "尚無棋步。果蠅的棋步以金色顯示。", "No moves yet. Black moves first; fly moves are shown in gold.": "尚無棋步。黑方先下；果蠅的棋步以金色顯示。", "FLY": "果蠅", "YOU": "你", "White wins": "白方勝", "Black wins": "黑方勝", "Draw": "和局", "You win": "你贏了", "The fly wins": "果蠅贏了", "Black {b} : {w} White": "黑 {b} : {w} 白", "checkmate": "將死", "stalemate": "逼和", "insufficient material": "子力不足", "fifty moves": "五十步規則", "threefold repetition": "三次重複局面", "White to move": "輪到白方", "Black to move": "輪到黑方", "your turn": "換你下", "the fly is thinking…": "果蠅思考中…", "the fly is up": "輪到果蠅", "check": "將軍", "Game over — <b>{reason}</b> ({result}). Press <b>New game</b> to play again.": "棋局結束：<b>{reason}</b>（{result}）。按<b>新棋局</b>再下一盤。", "Game over — <b>{who}</b> ({score}). Press <b>New game</b> to play again.": "棋局結束：<b>{who}</b>（{score}）。按<b>新棋局</b>再下一盤。", "cannot start the engine: {msg}": "無法啟動引擎：{msg}", "you have no legal move — passing": "你沒有合法的落子處，自動跳過", "pass": "跳過", "Mushroom Body": "蘑菇體", "Central Complex": "中央複合體", "Antennal Lobe": "觸角葉", "Strength: {s}": "棋力：{s}", "not measured yet (partially trained)": "尚未量測（只經過部分訓練）", "not measured yet": "尚未量測", "weights location not configured": "尚未設定權重位置", "This browser cannot keep downloaded brains; each visit downloads again.": "這個瀏覽器無法保存已下載的腦，每次造訪都會重新下載。", "Stored in this browser: {mb} MB ({list}).": "已存在這個瀏覽器中：{mb} MB（{list}）。", "Downloaded brains are kept in this browser, so each one downloads only once.": "下載過的腦會保存在這個瀏覽器中，每個腦只需要下載一次。", "Downloaded ✓ (loads instantly)": "已下載 ✓（可立即載入）", "Download {mb} MB": "下載 {mb} MB", "Brain atlas": "腦圖譜", "Choose a fly brain to see its real traced neurons here; they light up as the circuit plays.": "選擇一個果蠅腦後，這裡會顯示它真實追蹤重建的神經元；迴路下棋時它們會亮起。", "Every move is computed by a spiking network wired from a <b>real fruit fly brain circuit</b> in the MaleCNS connectome, with trained synaptic weights. Choose which circuit you play against: the mushroom body, the antennal lobe or the central complex. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.": "每一步棋都由一個脈衝神經網路計算，它依 MaleCNS 連結體中的一段<b>真實果蠅腦迴路</b>接線，並使用訓練過的突觸權重。請選擇你要對弈的迴路：蘑菇體、觸角葉或中央複合體。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。", "Choose your opponent": "選擇你的對手", "— pick a fly brain to start": "— 選一個果蠅腦開始", "Could not load {name}: {msg}": "無法載入{name}：{msg}", "mushroom-body": "蘑菇體", "mushroom body": "蘑菇體", "Every move is computed by a spiking network wired from the <b>real MaleCNS {name} connectome</b> — {H} measured neurons, {E} neuron-to-neuron connections, excitatory/inhibitory signs from neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries forward from move to move, so what you see at move 40 descends from move 1. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.": "每一步棋都由一個脈衝神經網路計算，它依<b>真實的 MaleCNS {name}連結體</b>接線：{H} 個實測神經元、{E} 條神經元之間的連結，興奮／抑制符號取自神經傳導物質標註。右側把這些神經元畫在它們<b>真實量測到的細胞體位置</b>，並隨著迴路運作而亮起。網路狀態<b>從不重設</b>：它一步一步延續下去，所以你在第 40 步看到的活動，是從第 1 步一路延續而來。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。", "loading the {name}…": "正在載入{name}…", "{n} UCI tokens": "{n} 個 UCI 棋步記號", "{n} tokens (64 squares, pass, start and end markers)": "{n} 個記號（64 個格子、跳過、開始與結束標記）", "There is no search and no evaluation function: each move is one timestep of the network, restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.": "這裡沒有搜尋，也沒有評估函數：每一步棋都只是網路的一個時間步，並由 chess.js 限制在合法棋步之內。真正有意思的是<i>究竟是什麼基質在計算</i>。", "There is no search and no evaluation function: each move is one timestep of the network, restricted to legal squares. The interesting claim is <i>which substrate is computing</i>.": "這裡沒有搜尋，也沒有評估函數：每一步棋都只是網路的一個時間步，並限制在合法落子格之內。真正有意思的是<i>究竟是什麼基質在計算</i>。", "<b>Honest caveat.</b> This {name} model is only partially trained and plays far weaker than the mushroom body.": "<b>老實說明。</b>這個{name}模型只經過部分訓練，棋力遠弱於蘑菇體。", "Its strength has not been measured yet.": "它的棋力尚未量測。", "<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet. Every move is restricted to legal moves by chess.js. The interesting claim is <i>which substrate is computing</i>.": "<b>老實說明。</b>這不是一個強大的棋類引擎，而且這個模型的棋力尚未量測。每一步棋都由 chess.js 限制在合法棋步之內。真正有意思的是<i>究竟是什麼基質在計算</i>。", "<b>Honest caveat.</b> This is not a strong engine: {elo}{prev}. On {test} it picks Stockfish's best move <b>{sf}</b> of the time (opening {op}, early middlegame {em}, middlegame {mg}, endgame {eg}) and the move the human played {hm}.": "<b>老實說明。</b>這不是一個強大的棋類引擎：{elo}{prev}。在{test}上，它有 <b>{sf}</b> 的時候選到 Stockfish 的最佳棋步（開局 {op}、中局前段 {em}、中局 {mg}、殘局 {eg}），與人類實際下的棋步一致的比例為 {hm}。", "({x})": "（{x}）", "{elo} · Stockfish best-move agreement {sf} · human move-match {hm}": "{elo}・與 Stockfish 最佳棋步一致 {sf}・與人類棋步一致 {hm}", "<b>Honest caveat.</b> This is not a strong engine, and the strength of this model has not been measured yet.": "<b>老實說明。</b>這不是一個強大的棋類引擎，而且這個模型的棋力尚未量測。", "<b>Honest caveat.</b> This is not a strong engine.": "<b>老實說明。</b>這不是一個強大的棋類引擎。", "Matches: {m}.": "對戰設定：{m}。", "learning & memory: pattern → value": "學習與記憶：模式 → 價值", "legend|Kenyon cell": "Kenyon cell（KC）", "legend|MBON": "MBON（輸出神經元）", "legend|DAN": "DAN（多巴胺神經元）", "legend|APL": "APL 神經元", "legend|other MB": "其他蘑菇體神經元", "class|other": "其他", "class|all": "全部", "class|receptor": "受器", "ring and extrinsic ring neurons (input)": "環狀與外環狀神經元（輸入）", "PFN columnar neurons (input)": "PFN 柱狀神經元（輸入）", "PFL steering output neurons (readout)": "PFL 轉向輸出神經元（讀出）", "other central-complex neurons": "其他中央複合體神經元", "olfactory, thermo- and hygrosensory receptor neurons (input)": "嗅覺、溫覺與濕覺受器神經元（輸入）", "projection neurons (readout)": "投射神經元（讀出）", "local and inter-neurons": "局部神經元與中間神經元", "ER ring (landmark/visual) + PFN (self-motion via NO) + ExR": "ER 環狀神經元（地標／視覺）＋ PFN（經由小結的自身運動）＋ ExR", "PFL1/2/3 (steering -> LAL)": "PFL1/2/3（轉向 → 側副葉）", "ORN/TRN/HRN receptor neurons": "ORN/TRN/HRN 受器神經元", "ALPN+ALON projection neurons": "ALPN＋ALON 投射神經元", "Dopamine gate — the write": "多巴胺閘門：寫入", "{n}of {total} DANs spiking this timestep": "{n} 個 DAN 在這個時間步發放脈衝（共 {total} 個）", "gate × fast-weight write": "閘門 × 快速權重寫入", "When DANs spike they multiplicatively gate the KC→MBON current and drive the fast-weight write — the fly's real three-factor plasticity rule, running inside the game.": "DAN 發放脈衝時，會以乘法方式調控 KC→MBON 的電流，並驅動快速權重的寫入：這是果蠅真實的三因子可塑性規則，就在棋局中運作。", "KC stays <b>sparse</b> — that is the point of an expansion layer, and APL's global inhibition is what enforces it. MBON is a small population so its rate is coarse; APL is one neuron per hemisphere, so it reads 0%, 50% or 100%.": "KC 的活動保持<b>稀疏</b>：這正是擴展層的用意，而 APL 的全域抑制負責維持這種稀疏。MBON 的數量少，所以發放率的刻度較粗；APL 每側只有一個神經元，所以只會是 0%、50% 或 100%。", "Hemispheres": "左右半腦", "The connectome is bilateral, with edges crossing the midline in both directions.": "連結體左右對稱，並有雙向跨越中線的連結。", "cross-midline edges": "跨中線連結", "R→L / L→R": "右→左／左→右", "measured, not modelled": "實測資料，並非模型推估", "{name} atlas": "{name}圖譜", "Mushroom body": "蘑菇體", "measured soma coordinates": "實測細胞體座標", "Frontal view": "正面", "Dorsal view": "背面", "Memory overlay: on": "記憶疊圖：開", "Memory overlay: off": "記憶疊圖：關", "◀ <b>left hemisphere</b> {n} neurons": "◀ <b>左半腦</b> {n} 個神經元", "{n} neurons <b>right hemisphere</b> ▶": "{n} 個神經元 <b>右半腦</b> ▶", "Dim = silent, bright = spiking on this timestep.": "暗 = 靜止，亮 = 在這個時間步發放脈衝。", "every line is a traced neurite; firing changes brightness, never thickness": "每條線都是一段追蹤重建的神經突；發放只改變亮度，不改變粗細", "atlas redraw {ms}": "圖譜重繪 {ms}", "▶ replay game": "▶ 重播棋局", "■ stop": "■ 停止", "live": "即時", "live · t={t}": "即時・t={t}", "Continuous activity across the game": "整盤棋的連續活動", "state carried, never reset": "狀態延續，從不重設", "neurons firing now": "目前發放中的神經元", "of {H}": "共 {H} 個", "{n} of {H}": "{n}／{H}", "carried from previous move": "延續自上一步", "spike overlap": "脈衝重疊", "still shared with move 1": "仍與第 1 步相同", "unbroken state trajectory": "未中斷的狀態軌跡", "cost per timestep": "每個時間步的耗時", "constant — O(H) state": "固定：O(H) 狀態", "The lower trace is wall-clock cost per timestep in your browser. It stays <b>flat</b> as the game grows because the circuit carries its state instead of re-reading the game — the readout at move 40 costs exactly what move 1 cost.": "下方曲線是你的瀏覽器中每個時間步的實際耗時。隨著棋局進行它保持<b>平坦</b>，因為迴路延續自己的狀態，而不是把整盤棋重新讀一次：第 40 步的讀出和第 1 步花的時間一樣。", "Firing rate per cell class": "各細胞類別的發放率", "waiting": "等待中", "no move computed yet": "尚未計算任何棋步", "The <b>mushroom body</b> is the fly's olfactory <i>learning</i> centre. Four cell classes do the work, and all four are drawn on the atlas:": "<b>蘑菇體</b>是果蠅的嗅覺<i>學習</i>中樞。四類細胞各司其職，全都畫在圖譜上：", "Kenyon cells": "Kenyon cell（KC）", "Sparse expansion layer: the <b>keys</b>. Dendrites in the <b>calyx</b>, axons down the <b>peduncle</b> into the α/β, α'/β' and γ <b>lobes</b>.": "稀疏的擴展層，也就是<b>索引鍵</b>。樹突位於<b>萼部</b>，軸突沿著<b>柄部</b>延伸到 α/β、α'/β' 與 γ <b>葉</b>。", "MBONs": "輸出神經元（MBON）", "Output neurons carrying learned <b>values</b>. Their dendrites tile the lobes into compartments; everything downstream sees only these.": "帶著學到的<b>價值</b>的輸出神經元。它們的樹突把各葉分成一個個隔區；下游只看得到它們。", "DANs": "多巴胺神經元（DAN）", "Dopamine. They <b>gate the write</b> onto KC→MBON synapses. PAM cells innervate the medial lobes, PPL1 cells the vertical lobes.": "多巴胺。它們<b>調控寫入</b> KC→MBON 突觸。PAM 細胞支配內側葉，PPL1 細胞支配垂直葉。", "One giant GABAergic neuron per hemisphere, spanning the whole structure. Global <b>inhibitory feedback</b> that keeps the KC code sparse.": "每側一個巨大的 GABA 能神經元，遍布整個結構。它提供全域的<b>抑制性回饋</b>，讓 KC 的編碼保持稀疏。", "Connectome and soma coordinates: <b>MaleCNS v1.0</b> (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>. Excitatory/inhibitory signs from the release's neurotransmitter annotations; Kenyon cells are treated as cholinergic (excitatory). 4,510 neurons, 1,027,152 within-MB neuron-to-neuron connections, {cross} of them crossing the midline. Neuron morphology from the same release's traced skeletons.": "連結體與細胞體座標：<b>MaleCNS v1.0</b>（雄性<i>黑腹果蠅</i>中樞神經系統），依 <b>CC-BY-4.0</b> 授權使用。興奮／抑制符號取自該版資料的神經傳導物質標註；Kenyon cell 視為膽鹼性（興奮性）。4,510 個神經元、1,027,152 條蘑菇體內神經元之間的連結，其中 {cross} 條跨越中線。神經元形態取自同一版資料的追蹤骨架。", "Connectome and soma coordinates: <b>MaleCNS v1.0</b> (male <i>Drosophila melanogaster</i> central nervous system), used under <b>CC-BY-4.0</b>. Excitatory/inhibitory signs from the release's predicted neurotransmitters. {H} neurons, {E} within-region neuron-to-neuron connections{cross}. Neuron morphology from the same release's traced skeletons.": "連結體與細胞體座標：<b>MaleCNS v1.0</b>（雄性<i>黑腹果蠅</i>中樞神經系統），依 <b>CC-BY-4.0</b> 授權使用。興奮／抑制符號取自該版資料預測的神經傳導物質。{H} 個神經元、{E} 條此腦區內神經元之間的連結{cross}。神經元形態取自同一版資料的追蹤骨架。", ", {n} of them crossing the midline": "，其中 {n} 條跨越中線", "The circuit you are watching": "你正在觀看的迴路", "The machine": "運算細節", "loading…": "載入中…", "dorsal projection · x = medial-lateral, z = anterior-posterior": "背面投影・x = 內外側，z = 前後", "frontal projection · x = medial-lateral, y = dorsal-ventral": "正面投影・x = 內外側，y = 背腹", "{n} spiking": "{n} 個發放中", "L {l} / R {r}": "左 {l}／右 {r}", "{n} ms": "{n} 毫秒", "carried from move 1": "延續自第 1 步", "timestep (one per move) →": "時間步（每步棋一個）→", "ms / timestep": "毫秒／時間步", "timestep →": "時間步 →", "first {a} · last {b} ms": "第一步 {a}・最近 {b} 毫秒", "This browser cannot run the fly": "這個瀏覽器無法執行果蠅", "Missing: <b>{list}</b>. Please use a current Chrome, Edge, Firefox (114+) or Safari (15+).": "缺少：<b>{list}</b>。請使用新版的 Chrome、Edge、Firefox（114 以上）或 Safari（15 以上）。", "The engine failed to start": "引擎無法啟動", "Weights location not configured": "尚未設定權重位置", "Set <b>WEIGHTS_BASE</b> for this model in <code>config.js</code> to the model folder URL (e.g. the Hugging Face <code>resolve/main/</code> URL).": "請在 <code>config.js</code> 中為這個模型設定 <b>WEIGHTS_BASE</b>，指向模型資料夾的網址（例如 Hugging Face 的 <code>resolve/main/</code> 網址）。", "the fly's {region}": "果蠅的{region}", "the fly's brain": "果蠅的腦", "Loading {brain}…": "正在載入{brain}…", "Downloading the trained connectome weights. Everything runs locally in this tab.": "正在下載訓練好的連結體權重。所有運算都在這個分頁中於本機進行。", "starting…": "準備中…", "building the network": "建構網路中", "Could not load {brain}": "無法載入{brain}", "PASS": "通過", "FAIL": "未通過", "connectome": "連結體", "MaleCNS v1.0 {region} (CC-BY-4.0)": "MaleCNS v1.0 {region}（CC-BY-4.0）", "neurons": "神經元", "neuron-to-neuron connections": "神經元之間的連結", "Dale signs": "戴爾原則符號", "E {E} / I {I} / modulatory {mod}": "興奮 {E}／抑制 {I}／調節 {mod}", "hemispheres": "左右半腦", "{L} L / {R} R": "左 {L}／右 {R}", "soma coordinates": "細胞體座標", "{a} measured, {b} imputed": "實測 {a}、推估 {b}", "unavailable": "無法取得", "run mode": "執行模式", "RSNN (one timestep per move, state carried, no reset) · in this browser tab": "RSNN（每步棋一個時間步，狀態延續、不重設）・在這個瀏覽器分頁中執行", "input → readout": "輸入 → 讀出", "{nin} {input} → {nout} {output} (no dopamine gate)": "{nin} 個{input} → {nout} 個{output}（沒有多巴胺閘門）", "synaptic weights": "突觸權重", "trained with <a href=\"https://arxiv.org/abs/2604.01295\" target=\"_blank\" rel=\"noopener\">PHCSSM</a> parallel-scan mode, deployment in sequential RSNN mode": "以 <a href=\"https://arxiv.org/abs/2604.01295\" target=\"_blank\" rel=\"noopener\">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署", "move vocabulary": "棋步詞彙", "trained parameters": "訓練參數", "{x} M": "{x} 百萬", "model": "模型", "weights in this page": "本頁使用的權重", "{variant} · {mb} MB loaded from this browser's storage": "{variant}・{mb} MB，從這個瀏覽器的儲存空間載入", "{variant} · {mb} MB loaded ({net} MB downloaded, the rest from this browser's storage)": "{variant}・{mb} MB（下載 {net} MB，其餘從這個瀏覽器的儲存空間載入）", "{variant} · {mb} MB downloaded, kept in this browser for next time": "{variant}・已下載 {mb} MB，並保存在這個瀏覽器中供下次使用", "{variant} · {mb} MB downloaded": "{variant}・已下載 {mb} MB", "recurrent weights": "遞迴權重", "{n} nonzero, {m} off the connectome": "{n} 個非零，{m} 個在連結體之外", "Dale check": "戴爾原則檢查", "{n} wrong-sign weights": "{n} 個符號錯誤的權重", "engine vs reference": "引擎與參考實作比對", "legal top-1 {a}/{b} vs the fp32 reference ({n} {games}); {x} of {y} spike bits differ from the reference on the same weights": "合法棋步中的第一選擇與 fp32 參考實作一致 {a}/{b}（{n} 盤{games}）；使用相同權重時，{x}／{y} 個脈衝位元與參考實作不同", "held-out games": "保留對局", "fly-vs-fly reference games": "果蠅對果蠅參考對局", "load-time self-check": "載入時自我檢查", "— legal top-1 {a}/{b} plies, max |Δlogit| {e}": "— 合法棋步第一選擇一致 {a}/{b} 手，最大 |Δlogit| {e}", "engine load": "引擎載入時間", "{s} s": "{s} 秒", "Model: {label} ({variant} weights).": "模型：{label}（{variant} 權重）。", "strength": "棋力", "{a} of {b}": "{a}／{b}", "Bilateral: <b>{L} left / {R} right</b>, and <b>{p}%</b> of {edges} cross the midline — the two sides are not independent copies.": "左右對稱：<b>左 {L}／右 {R}</b>，其中 <b>{p}%</b> 的{edges}跨越中線：左右兩側並不是彼此獨立的複本。", "edges": "連結", "edges between neurons of known side": "已知左右側神經元之間的連結", "{n} traced cells · {b} branches · MaleCNS v1.0": "{n} 個追蹤重建的細胞・{b} 個分支・MaleCNS v1.0", "Every line is a real traced neuron. Dim = silent; when a neuron spikes its WHOLE cell lights up.": "每條線都是一個真實追蹤重建的神經元。暗 = 靜止；神經元發放脈衝時，整個細胞都會亮起。", "{n} cells have no published skeleton.": "有 {n} 個細胞沒有公開的骨架資料。", "MaleCNS v1.0 skeletons-malecns/skeletons-precomputed (CC-BY-4.0)": "MaleCNS v1.0 預先計算的神經元骨架（CC-BY-4.0）", "{n} measured soma positions (skeletons unavailable)": "{n} 個實測細胞體位置（無法取得骨架）", "Skeletons could not be loaded — falling back to measured soma positions (one dot per neuron).": "無法載入骨架，改用實測的細胞體位置（每個神經元一個點）。", "fly:": "果蠅：", "fly error": "果蠅出錯", "fly error: {msg}": "果蠅出錯：{msg}", "stay": "不動", "up": "往上", "down": "往下", "Still training — not available yet": "仍在訓練中，暫時無法使用", "Record: {s}": "戰績：{s}", "The fly's paddle is moved by a spiking network wired from the <b>real MaleCNS {name} connectome</b> — {H} measured neurons, {E} neuron-to-neuron connections, excitatory/inhibitory signs from neurotransmitter annotations. It sees six numbers each frame (the ball's position and velocity and both paddles) and answers stay, up or down. The network takes <b>one timestep per frame</b>, 60 frames per second, and its state is never reset during a game. It learned by copying the actions of a scripted Pong player. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.": "果蠅的球拍由一個脈衝神經網路移動，它依<b>真實的 MaleCNS {name}連結體</b>接線：{H} 個實測神經元、{E} 條神經元之間的連結，興奮／抑制符號取自神經傳導物質標註。它每一幀看到六個數字（球的位置與速度，以及兩邊球拍的位置），回答不動、往上或往下。網路<b>每一幀走一個時間步</b>，每秒 60 幀，一局之中狀態從不重設。它是模仿一個程式化 Pong 玩家的動作學會的。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。", "The fly wins {a}–{b}.": "果蠅以 {a}–{b} 獲勝。", "You win {a}–{b}.": "你以 {a}–{b} 獲勝。", "Paused. Press Start or Space to continue.": "已暫停。按「開始」或空白鍵繼續。", "Press Start or Space to serve.": "按「開始」或空白鍵發球。", "The fly scores.": "果蠅得分。", "You score.": "你得分。", "fly: {ms} ms per timestep": "果蠅：每個時間步 {ms} 毫秒", "fly: {ms} ms per timestep · {fps} frames per second": "果蠅：每個時間步 {ms} 毫秒・每秒 {fps} 幀", "slower than real time on this device: every frame is still simulated, none is skipped": "在這台裝置上比即時慢：每一幀仍然都有模擬，沒有跳過任何一幀", "Pause": "暫停", "Start": "開始", "<b>The fly wins {a}–{b}.</b> Press New game for a rematch.": "<b>果蠅以 {a}–{b} 獲勝。</b>按「新的一局」再比一場。", "<b>You win {a}–{b}.</b> Press New game to play again.": "<b>你以 {a}–{b} 獲勝。</b>按「新的一局」再玩一次。", "{n} actions (stay, up, down)": "{n} 種動作（不動、往上、往下）", "<b>Honest caveat.</b> This fly learned by copying a scripted Pong player: it gets no reward, plans nothing ahead and has no model of the game beyond what its trained wiring computes from the six numbers it sees.": "<b>老實說明。</b>這隻果蠅是模仿一個程式化 Pong 玩家學會的：它沒有獎賞、不做任何事先規劃，除了訓練過的接線從它看到的六個數字算出的東西之外，它對這個遊戲沒有別的模型。", "Each paddle command is one timestep of the network. The interesting claim is <i>which substrate is computing</i>.": "每一個球拍指令都只是網路的一個時間步。真正有意思的是<i>究竟是什麼基質在計算</i>。", "carried from previous frame": "延續自上一幀", "still shared with frame 1": "仍與第 1 幀共享", "The lower trace is wall-clock cost per timestep in your browser, one timestep per frame. It stays <b>flat</b> because the circuit carries its state instead of re-reading the game: frame 3,000 costs exactly what frame 1 cost. The charts show the last 900 frames.": "下方曲線是你的瀏覽器中每個時間步的實際耗時，每一幀一個時間步。它保持<b>平坦</b>，因為迴路延續自己的狀態，而不是把整局重新讀一次：第 3,000 幀花的時間和第 1 幀一樣。圖表顯示最近 900 幀。", "carried from frame 1": "延續自第 1 幀", "timestep (one per frame) →": "時間步（每幀一個）→", "{x} of {y} spike bits differ from the reference on the same weights ({a} held-out frames and a {b}-frame closed-loop game)": "使用相同權重時，{x}／{y} 個脈衝位元與參考實作不同（{a} 個保留測試幀，以及一場 {b} 幀的閉環對局）", "RSNN (one timestep per frame at 60 frames per second, state carried through the game) · in this browser tab": "RSNN（每秒 60 幀、每幀一個時間步，狀態在整局中延續）・在這個瀏覽器分頁中執行", "actions": "動作", "— top-1 {a}/{b} frames, max |Δlogit| {e}": "— 第一選擇一致 {a}/{b} 幀，最大 |Δlogit| {e}", "Rally hits: {n}": "本回合擊球：{n} 次", "record": "戰績", "{n} of the {m} spiking cells are drawn each frame, rotating, so the game keeps real time": "每一幀從 {m} 個發放的細胞中輪流畫出 {n} 個，好讓遊戲維持即時", "Luminance": "亮度", "Lamina ON/OFF": "板層 ON/OFF", "Motion T4/T5": "運動 T4/T5", "{n} fps": "{n} fps", "Loading eye geometry…": "正在載入眼睛幾何…", "Requesting camera…": "正在要求攝影機權限…", "The fly is watching you — move to light up motion in both eyes": "果蠅正在看著你——動一動，讓兩隻眼睛的運動訊號亮起來", "⏹ Camera on": "⏹ 攝影機已開啟", "Cannot open camera: {err}. If blocked by the shared-page sandbox, open this page locally instead.": "無法開啟攝影機：{err}。若被共享頁面的沙箱阻擋，請改在本機開啟此頁面。", "{n} ommatidia · luminance": "{n} 個小眼 · 亮度", "Lamina L1/L2 · temporal contrast": "板層 L1/L2 · 時間對比", "T4/T5 · direction-selective motion": "T4/T5 · 方向選擇性運動", "Fly optic lobe · luminance": "果蠅視葉 · 亮度", "Fly optic lobe · ON/OFF": "果蠅視葉 · ON/OFF", "Fly optic lobe · motion": "果蠅視葉 · 運動", "Press ▶ Start camera": "按 ▶ 啟動攝影機", "Left eye L · {n}": "左眼 L · {n}", "Right eye R · {n}": "右眼 R · {n}", "{n} ommatidia": "{n} 個小眼", "three.js failed to load (CDN blocked)": "three.js 載入失敗（CDN 被擋住）", "{n} LIF neurons · loading edges + E/I…": "{n} 個 LIF 神經元 · 正在載入連線與興奮／抑制符號…", "{n} LIF neurons · {m} edges (E 75% / I 25%) · start camera": "{n} 個 LIF 神經元 · {m} 條連線（興奮 75%／抑制 25%）· 請啟動攝影機", "edges/sign not loaded: {err}": "連線或興奮／抑制符號未載入：{err}", "Optic-lobe soma not loaded: {err}": "視葉胞體未載入：{err}", "▶ Resume": "▶ 繼續", "Camera off": "攝影機已關閉", "▶ Start camera": "▶ 啟動攝影機", "⏸ Pause": "⏸ 暫停", "The 3D optic lobe needs WebGL, which this browser does not provide. The camera view, the ommatidia panels and the mode buttons above still work.": "3D 視葉需要 WebGL，這個瀏覽器沒有提供。上方的攝影機畫面、小眼面板與模式按鈕仍然可以正常使用。"};
+function t(s,v){var d=window.FV_I18N[s]||s;return v?d.replace(/\{(\w+)\}/g,function(m,k){return v[k]!=null?v[k]:m;}):d;}
+</script>
+<script>
+const S3=Math.sqrt(3);
+let EYE_L,EYE_R,NL,NR,N,lum,lumP,lumD,DRAW,SRC,NBR,EYEREADY=false;
+function buildEye(xa,ya){
+  const n=xa.length; let a=1e18,b=-1e18,c=1e18,dd=-1e18;
+  for(let i=0;i<n;i++){if(xa[i]<a)a=xa[i];if(xa[i]>b)b=xa[i];if(ya[i]<c)c=ya[i];if(ya[i]>dd)dd=ya[i];}
+  const O=new Array(n); for(let i=0;i<n;i++)O[i]={x:xa[i],y:ya[i],nq:-1,nr:-1};
+  let sd=0; for(let i=0;i<n;i++){let m=1e18;for(let j=0;j<n;j++){if(i===j)continue;const dx=xa[j]-xa[i],dy=ya[j]-ya[i],e=dx*dx+dy*dy;if(e<m)m=e;}sd+=Math.sqrt(m);}
+  const md=sd/n||1, th=(2.3*md)*(2.3*md);
+  for(let i=0;i<n;i++){let br=1e18,bu=1e18;
+    for(let j=0;j<n;j++){if(i===j)continue;const dx=xa[j]-xa[i],dy=ya[j]-ya[i],e=dx*dx+dy*dy; if(e>th)continue;
+      if(dx>0&&Math.abs(dy)<dx&&e<br){br=e;O[i].nq=j;}
+      if(dy>0&&Math.abs(dx)<dy&&e<bu){bu=e;O[i].nr=j;}}}
+  return {O,minX:a,maxX:b,minY:c,maxY:dd,spanX:b-a,spanY:dd-c,md};
+}
+const vid=document.getElementById("vid");
+const cam=document.getElementById("cam"), cx=cam.getContext("2d");
+const fly=document.getElementById("fly"), fx=fly.getContext("2d");
+const off=document.createElement("canvas"); off.width=off.height=170; const ox=off.getContext("2d",{willReadFrequently:true});
+let mode=0, running=false, frames=0, fpsT=0, paused=false;
+const MODENAMES=[t("Luminance"),t("Lamina ON/OFF"),t("Motion T4/T5")];
+const HEX=[]; for(let k=0;k<6;k++){const A=Math.PI/180*(60*k-90);HEX.push([Math.cos(A),Math.sin(A)]);}
+function hexPath(ctx,px,py,r){ctx.beginPath();for(let k=0;k<6;k++){const x=px+r*HEX[k][0],y=py+r*HEX[k][1];k?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();}
+function layout(){
+  const W=fly.width,H=fly.height,pad=14,gap=18; const halfW=(W-gap)/2-pad;
+  const sc=Math.min(halfW/Math.max(EYE_L.spanX,EYE_R.spanX),(H-2*pad)/Math.max(EYE_L.spanY,EYE_R.spanY));
+  window._rad=sc*Math.max(EYE_L.md,EYE_R.md)*0.55;
+  function place(eye,base,side){
+    const usableH=eye.spanY*sc, oy=(H-usableH)/2, ex=(halfW-eye.spanX*sc)/2;
+    for(let i=0;i<eye.O.length;i++){const o=eye.O[i],gi=base+i;
+      const lx=(o.x-eye.minX)*sc, ly=(o.y-eye.minY)*sc+oy;
+      const px = side==="L" ? pad+ex+lx : (W/2+gap/2)+ex+lx;
+      DRAW[gi*2]=px; DRAW[gi*2+1]=ly;
+      const nx=(o.x-eye.minX)/eye.spanX, ny=(o.y-eye.minY)/eye.spanY;
+      const sx = side==="L" ? nx*0.56 : 0.44+nx*0.56;
+      SRC[gi*2]=sx; SRC[gi*2+1]=ny;
+      NBR[gi*2]=o.nq<0?-1:base+o.nq; NBR[gi*2+1]=o.nr<0?-1:base+o.nr;
+    } }
+  place(EYE_L,0,"L"); place(EYE_R,NL,"R");
+}
+function sample(){
+  if(!EYEREADY)return;
+  const vw=vid.videoWidth, vh=vid.videoHeight; if(!vw)return;
+  const s=Math.min(vw,vh), sx0=(vw-s)/2, sy0=(vh-s)/2;
+  ox.save(); ox.translate(off.width,0); ox.scale(-1,1);
+  ox.drawImage(vid,sx0,sy0,s,s,0,0,off.width,off.height); ox.restore();
+  const im=ox.getImageData(0,0,off.width,off.height).data, WW=off.width,HH=off.height;
+  for(let i=0;i<N;i++){
+    const px=Math.min(WW-1,Math.max(0,Math.round(SRC[i*2]*(WW-1))));
+    const py=Math.min(HH-1,Math.max(0,Math.round(SRC[i*2+1]*(HH-1))));
+    const p=(py*WW+px)*4; const v=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255;
+    lumP[i]=lum[i]; lum[i]=v; lumD[i]+=(v-lumD[i])*0.18; } }
+function drawCam(){
+  const vw=vid.videoWidth, vh=vid.videoHeight; if(!vw)return;
+  const s=Math.min(vw,vh), sx0=(vw-s)/2, sy0=(vh-s)/2;
+  cx.save(); cx.translate(cam.width,0); cx.scale(-1,1);
+  cx.drawImage(vid,sx0,sy0,s,s,0,0,cam.width,cam.height); cx.restore(); }
+function drawFly(){
+  if(!EYEREADY)return; const r=window._rad; fx.clearRect(0,0,fly.width,fly.height);
+  for(let i=0;i<N;i++){
+    const px=DRAW[i*2],py=DRAW[i*2+1]; let col;
+    if(mode===0){const v=Math.round(lum[i]*255);col="rgb("+v+","+v+","+v+")";}
+    else if(mode===1){const d=lum[i]-lumP[i];const m=Math.min(1,Math.abs(d)*6);
+      col=d>=0?"rgba(255,90,72,"+(0.12+m)+")":"rgba(61,123,255,"+(0.12+m)+")";}
+    else{let mx=0,my=0; const jq=NBR[i*2],jr=NBR[i*2+1];
+      if(jq>=0)mx=lum[i]*lumD[jq]-lumD[i]*lum[jq];
+      if(jr>=0)my=lum[i]*lumD[jr]-lumD[i]*lum[jr];
+      const mag=Math.min(1,Math.hypot(mx,my)*10),hue=(Math.atan2(my,mx)*180/Math.PI+360)%360;
+      col="hsla("+hue+",85%,"+(18+mag*42)+"%,"+(0.14+mag)+")";}
+    fx.fillStyle=col; hexPath(fx,px,py,r); fx.fill(); } }
+function loop(t){ if(!running)return; if(paused){requestAnimationFrame(loop);return;} sample(); drawCam(); drawFly();
+  frames++; if(t-fpsT>500){document.getElementById("fps").textContent=window.t("{n} fps",{n:Math.round(frames*1000/(t-fpsT))});frames=0;fpsT=t;}
+  requestAnimationFrame(loop);}
+async function start(){
+  const st=document.getElementById("status");
+  if(!EYEREADY){st.textContent=t("Loading eye geometry…");return;}
+  try{ st.className="status"; st.textContent=t("Requesting camera…");
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+    vid.srcObject=stream; await vid.play(); running=true; fpsT=performance.now(); requestAnimationFrame(loop);
+    st.textContent=t("The fly is watching you — move to light up motion in both eyes"); document.getElementById("start").textContent=t("⏹ Camera on");
+  }catch(e){ st.className="status err";
+    st.textContent=t("Cannot open camera: {err}. If blocked by the shared-page sandbox, open this page locally instead.",{err:(e&&e.name||e)}); } }
+function stopCam(){ if(vid.srcObject){vid.srcObject.getTracks().forEach(t=>t.stop());vid.srcObject=null;} running=false; document.getElementById("start").textContent=t("▶ Start camera"); document.getElementById("status").textContent=t("Camera off"); drawRest(); }
+document.getElementById("start").onclick=()=>{ if(running) stopCam(); else start(); };
+function setMode(m){mode=m;document.getElementById("modeName").textContent=MODENAMES[m];
+  ["m0","m1","m2"].forEach((id,k)=>{var el=document.getElementById(id);el.setAttribute("aria-pressed",k===m);el.classList.toggle("on",k===m);});
+  document.getElementById("capR").textContent=[t("{n} ommatidia · luminance",{n:(N||"")}),t("Lamina L1/L2 · temporal contrast"),t("T4/T5 · direction-selective motion")][m];
+  document.getElementById("flyTitle").textContent=[t("Fly optic lobe · luminance"),t("Fly optic lobe · ON/OFF"),t("Fly optic lobe · motion")][m];}
+document.getElementById("m0").onclick=()=>setMode(0);
+document.getElementById("m1").onclick=()=>setMode(1);
+document.getElementById("m2").onclick=()=>setMode(2);
+document.getElementById("pause").onclick=()=>{paused=!paused;document.getElementById("pause").textContent=paused?t("▶ Resume"):t("⏸ Pause");};
+function drawRest(){const r=window._rad;fx.clearRect(0,0,fly.width,fly.height);
+  for(let i=0;i<N;i++){fx.fillStyle="rgba(90,209,255,.16)";hexPath(fx,DRAW[i*2],DRAW[i*2+1],r);fx.fill();}
+  cx.fillStyle="#05080e";cx.fillRect(0,0,cam.width,cam.height);
+  cx.fillStyle="#5ad1ff";cx.font='600 15px ui-monospace,monospace';cx.textAlign="center";
+  cx.fillText(t("Press ▶ Start camera"),cam.width/2,cam.height/2);}
+function makeOval(nApprox,aspect){
+  let A=Math.sqrt(nApprox*S3*1.5/(Math.PI*aspect)); const B=A*aspect;
+  const xs=[],ys=[], rmax=Math.ceil(B/1.5)+2, cmax=Math.ceil(A/S3)+2;
+  for(let r=-rmax;r<=rmax;r++){const y=1.5*r, xoff=(r&1)?S3/2:0;
+    for(let c=-cmax;c<=cmax;c++){const x=S3*c+xoff;
+      if((x*x)/(A*A)+(y*y)/(B*B)<=1.0){xs.push(x);ys.push(y);}}}
+  return {x:xs,y:ys};
+}
+(function initEyes(){
+  const ov=makeOval(880,1.42);
+  const EYE=buildEye(ov.x,ov.y); EYE_L=EYE; EYE_R=EYE;
+  NL=EYE.O.length; NR=EYE.O.length; N=NL+NR;
+  lum=new Float32Array(N); lumP=new Float32Array(N); lumD=new Float32Array(N);
+  DRAW=new Float32Array(N*2); SRC=new Float32Array(N*2); NBR=new Int32Array(N*2);
+  layout(); EYEREADY=true; drawRest();
+  document.getElementById("nOmm").textContent=N;
+  const el=document.querySelectorAll('.eyelab'); if(el[0])el[0].textContent=t("Left eye L · {n}",{n:NL}); if(el[1])el[1].textContent=t("Right eye R · {n}",{n:NR});
+  document.getElementById("capR").textContent=t("{n} ommatidia",{n:N});
+})();
+const olc=document.getElementById("ol"), OLstat=document.getElementById("olstatus");
+const OL={ready:false,rsnnReady:false,GAIN:0.012}; let olf=0;
+const LAYCOL=[[0.30,0.85,0.80],[0.34,0.88,0.52],[0.95,0.74,0.28],[0.95,0.42,0.90]];
+const LEAK=0.90, VTH=1.0, TARGET=0.045, DRIVEG=3.2;
+function b64(s){const bin=atob(s),u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);return u;}
+function fitView(){ if(!OL.bbox||!CAM)return; const bb=OL.bbox,e=GRP.rotation;
+  const cx=Math.cos(e.x),sx=Math.sin(e.x),cy=Math.cos(e.y),sy=Math.sin(e.y),C=[];
+  for(const X of[bb[0],bb[1]])for(const Y of[bb[2],bb[3]])for(const Z of[bb[4],bb[5]]){
+    const x1=cy*X+sy*Z,z1=-sy*X+cy*Z,y1=Y; C.push([x1,cx*y1-sx*z1,sx*y1+cx*z1]); }
+  const tan=Math.tan(45*Math.PI/360),asp=CAM.aspect;
+  const nd=zc=>{let m=0;for(const c of C){const dz=zc-c[2];if(dz<=0.02)return 1e9;m=Math.max(m,Math.abs(c[0])/(dz*tan*asp),Math.abs(c[1])/(dz*tan));}return m;};
+  let lo=0.3,hi=14;for(let i=0;i<44;i++){const md=(lo+hi)/2;if(nd(md)>0.9)lo=md;else hi=md;} CAM.position.z=hi; }
+function centerScale(x,y,z,N){let cx=0,cy=0,cz=0;for(let k=0;k<N;k++){cx+=x[k];cy+=y[k];cz+=z[k];}cx/=N;cy/=N;cz/=N;
+  let mr=1e-6;for(let k=0;k<N;k++){const m=Math.max(Math.abs(x[k]-cx),Math.abs(y[k]-cy),Math.abs(z[k]-cz));if(m>mr)mr=m;}
+  const pos=new Float32Array(N*3),s=1/mr;for(let k=0;k<N;k++){pos[k*3]=(x[k]-cx)*s;pos[k*3+1]=(y[k]-cy)*s;pos[k*3+2]=(z[k]-cz)*s;}return pos;}
+let RN,SCENE,CAM,GRP;
+function initScene(){ if(typeof THREE==="undefined"){OLstat.textContent=t("three.js failed to load (CDN blocked)");return false;}
+  const W=olc.width,H=olc.height;
+  try{ RN=new THREE.WebGLRenderer({canvas:olc,antialias:true}); }catch(e){ OLstat.textContent=t("The 3D optic lobe needs WebGL, which this browser does not provide. The camera view, the ommatidia panels and the mode buttons above still work."); return false; }
+  RN.setSize(W,H,false); RN.setClearColor(0x070a0e,1);
+  SCENE=new THREE.Scene(); SCENE.fog=new THREE.FogExp2(0x070a0e,0.20);
+  CAM=new THREE.PerspectiveCamera(45,W/H,0.01,100); CAM.position.set(0,0,1.95);
+  GRP=new THREE.Group(); SCENE.add(GRP);
+  OL.setView=(rx,ry,rz)=>{GRP.rotation.set(rx,ry,rz);fitView();}; OL.setView(0,0,0); OL.ready=true;
+  (function loop(){requestAnimationFrame(loop);
+    if(!paused&&running&&OL.rsnnReady){stepRSNN();colorSoma();drawRaster();}
+    RN.render(SCENE,CAM);})(); return true; }
+if(initScene()){
+  fetch("../../FlyVision/soma_ol_both.json").then(r=>r.json()).then(d=>{
+    const N=d.n, layer=Int8Array.from(d.layer), eye=Int8Array.from(d.eye), pos=centerScale(d.x,d.y,d.z,N), col=new Float32Array(N*3);
+    for(let k=0;k<N;k++){const c=LAYCOL[layer[k]];col[k*3]=c[0]*0.16;col[k*3+1]=c[1]*0.16;col[k*3+2]=c[2]*0.16;}
+    {let bb=[1e9,-1e9,1e9,-1e9,1e9,-1e9];for(let k=0;k<N;k++){const x=pos[k*3],y=pos[k*3+1],z=pos[k*3+2];if(x<bb[0])bb[0]=x;if(x>bb[1])bb[1]=x;if(y<bb[2])bb[2]=y;if(y>bb[3])bb[3]=y;if(z<bb[4])bb[4]=z;if(z>bb[5])bb[5]=z;}OL.bbox=bb;fitView();}
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const colAttr=new THREE.BufferAttribute(col,3); geo.setAttribute('color',colAttr);
+    GRP.add(new THREE.Points(geo,new THREE.PointsMaterial({size:2.4,sizeAttenuation:false,vertexColors:true,transparent:true,opacity:0.92,fog:true})));
+    const ez=[[1e18,-1e18,1e18,-1e18],[1e18,-1e18,1e18,-1e18]];
+    for(let k=0;k<N;k++) if(layer[k]===0){const b=ez[eye[k]]; if(d.y[k]<b[0])b[0]=d.y[k]; if(d.y[k]>b[1])b[1]=d.y[k]; if(d.z[k]<b[2])b[2]=d.z[k]; if(d.z[k]>b[3])b[3]=d.z[k];}
+    const WW=off.width,HH=off.height, laI=[],laX=[],laY=[];
+    for(let k=0;k<N;k++) if(layer[k]===0){const e=eye[k],b=ez[e];const nu=(d.y[k]-b[0])/((b[1]-b[0])||1),nv=(d.z[k]-b[2])/((b[3]-b[2])||1),su=e===0?nu*0.56:0.44+nu*0.56;
+      laI.push(k);laX.push(Math.min(WW-1,Math.max(0,Math.round(su*(WW-1)))));laY.push(Math.min(HH-1,Math.max(0,Math.round(nv*(HH-1)))));}
+    Object.assign(OL,{N,layer,col,colAttr,laI:Int32Array.from(laI),laX:Int32Array.from(laX),laY:Int32Array.from(laY),laD:new Float32Array(laI.length),
+      V:new Float32Array(N),s:new Float32Array(N),sPrev:new Float32Array(N),trace:new Float32Array(N),drive:new Float32Array(N),syn:new Float32Array(N)});
+    (function(){const rc=document.getElementById("raster"); if(!rc)return; const rctx=rc.getContext("2d",{willReadFrequently:true});
+      rctx.fillStyle="#05080e"; rctx.fillRect(0,0,rc.width,rc.height);
+      const perL=[[],[],[],[]]; for(let k=0;k<N;k++)perL[layer[k]].push(k);
+      const idx=[],lay=[],want=48; for(let L=0;L<4;L++){const arr=perL[L],st=Math.max(1,Math.floor(arr.length/want)); for(let a=0;a<arr.length&&lay.filter(x=>x===L).length<want;a+=st){idx.push(arr[a]);lay.push(L);}}
+      OL.rcanvas=rc; OL.rctx=rctx; OL.rw=rc.width; OL.rh=rc.height; OL.sampleIdx=Int32Array.from(idx); OL.sampleLayer=Int8Array.from(lay);})();
+    OLstat.textContent=t("{n} LIF neurons · loading edges + E/I…",{n:N.toLocaleString()});
+    Promise.all([fetch("../../FlyVision/edges_ol_both.json").then(r=>r.json()),fetch("../../FlyVision/sign_ol.json").then(r=>r.json())]).then(([ed,sg])=>{
+      const pre=new Int32Array(b64(ed.pre).buffer),post=new Int32Array(b64(ed.post).buffer),w=new Uint8Array(b64(ed.w).buffer);
+      const sign=Int8Array.from(sg.sign), M=pre.length, ews=new Float32Array(M);
+      for(let e=0;e<M;e++) ews[e]=w[e]*sign[pre[e]];
+      Object.assign(OL,{pre,post,ews,sign}); OL.rsnnReady=true;
+      OLstat.textContent=t("{n} LIF neurons · {m} edges (E 75% / I 25%) · start camera",{n:OL.N.toLocaleString(),m:M.toLocaleString()});
+    }).catch(e=>{OLstat.textContent=t("edges/sign not loaded: {err}",{err:e});});
+  }).catch(e=>{OLstat.textContent=t("Optic-lobe soma not loaded: {err}",{err:e});});
+}
+function stepRSNN(){
+  const {N,layer,pre,post,ews,laI,laX,laY,laD,V,s,sPrev,trace,drive,syn}=OL;
+  const im=ox.getImageData(0,0,off.width,off.height).data,WW=off.width;
+  drive.fill(0);
+  for(let q=0;q<laI.length;q++){const p=(laY[q]*WW+laX[q])*4; const cur=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255; const dd=laD[q]; laD[q]=dd+(cur-dd)*0.14; drive[laI[q]]=Math.min(2.0, cur*1.2 + Math.abs(cur-dd)*3.0);}
+  syn.fill(0);
+  for(let e=0;e<pre.length;e++) syn[post[e]]+=ews[e]*sPrev[pre[e]];
+  let fired=0; const G=OL.GAIN;
+  for(let k=0;k<N;k++){ V[k]=LEAK*V[k]+drive[k]+G*syn[k]; if(V[k]>VTH){s[k]=1;V[k]-=VTH;fired++;} else s[k]=0; }
+  OL.sPrev=s; OL.s=sPrev;
+  const rate=fired/N; OL.GAIN=Math.max(0.001,Math.min(0.06, G*Math.pow(TARGET/(rate+1e-4),0.03)));
+  const sp=OL.sPrev; for(let k=0;k<N;k++) trace[k]=Math.max(trace[k]*0.80, sp[k]);
+}
+function drawRaster(){const rc=OL.rctx; if(!rc)return; const W=OL.rw,H=OL.rh,sp=OL.sPrev,idx=OL.sampleIdx,lay=OL.sampleLayer,n=idx.length,rowH=H/n;
+  rc.drawImage(OL.rcanvas,-2,0); rc.fillStyle="#05080e"; rc.fillRect(W-2,0,2,H);
+  for(let r=0;r<n;r++){ if(sp[idx[r]]>0.5){ const c=LAYCOL[lay[r]]; rc.fillStyle="rgb("+(c[0]*255|0)+","+(c[1]*255|0)+","+(c[2]*255|0)+")"; rc.fillRect(W-2,r*rowH,2,Math.max(1.2,rowH));}}}
+function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
+  for(let k=0;k<N;k++){const c=LAYCOL[layer[k]],v=0.13+0.95*trace[k];col[k*3]=c[0]*v;col[k*3+1]=c[1]*v;col[k*3+2]=c[2]*v;}
+  colAttr.needsUpdate=true;}
+const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Math.PI/2,0],top:[-Math.PI/2,0,0],bottom:[Math.PI/2,0,0]};
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
+  document.querySelectorAll('[data-view]').forEach(x=>{x.setAttribute('aria-pressed',x===b);x.classList.toggle('on',x===b);});}));
+</script>
+</body>
+</html>
