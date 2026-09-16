@@ -16,7 +16,7 @@ export const ST = {
   ready: false, moves: [], human: '', orient: '', busy: false, temp: 0, status: { over: false }, info: null,
   proj: 'frontal', memory: false, fw: true, bits: [], hist: [], scrubT: null, gen: 0, anim: null, lastVf: null, model: null,
 };
-let PAGE = null, NOTE = '', REGION = null;
+let PAGE = null, NOTE = '', REGION = null, CANDS0 = null;
 const perFrame = () => !!(PAGE && PAGE.unit === 'frame');
 
 const isMB = () => !ST.info || !ST.info.region;
@@ -820,6 +820,7 @@ function defaultModel(kind) {
 export async function start(page) {
   PAGE = page;
   orderSide();
+  if ($('cands')) CANDS0 = $('cands').innerHTML;
   fitBoard();
   flyInit();
   wirePage();
@@ -955,7 +956,7 @@ export async function newSession() {
   ST.gen++; FLY.skip = true;
   ST.busy = false;
   ST.bits = []; ST.hist = []; ST.scrubT = null; ST.lastVf = null;
-  if ($('cands')) $('cands').innerHTML = ''; if ($('flyline')) $('flyline').textContent = '';
+  if ($('cands')) $('cands').innerHTML = CANDS0 || ''; if ($('flyline')) $('flyline').textContent = '';
   $('scrub').max = 0; $('scrub').value = 0; $('scrublb').textContent = t('live');
   ['mRate', 'mOvP', 'mOv1', 'mMs', 'danN'].forEach(i => { if ($(i)) $(i).textContent = '—'; });
   document.querySelectorAll('.hemi .hb i').forEach(el => { el.style.width = '0'; });

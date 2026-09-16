@@ -255,3 +255,22 @@ header{position:relative}
 .rt{font:12px ui-monospace,monospace;color:#9fb0cb;margin-top:6px}
 .rt .warn{font-weight:600}
 #boardwrap.pongcourt{aspect-ratio:auto}
+@media (max-width:600px){
+  .phonegrid{padding-left:0;padding-right:0;grid-template-columns:1fr 1fr;gap:8px}
+  .phonegrid>#colBoard,.phonegrid>#colSide,.phonegrid>#colNotes{display:contents}
+  .phonegrid #colSide>#atlasCard{grid-column:1;order:1;margin-bottom:0}
+  .phonegrid #colSide>.card[data-side="command"]{grid-column:2;order:1;margin-bottom:0}
+  .phonegrid #colBoard>.card{grid-column:1/-1;order:2;margin-bottom:0;border-radius:0;border-left:0;border-right:0}
+  .phonegrid #colSide>.card[data-side="picker"]{grid-column:1/-1;order:3}
+  .phonegrid #colSide>.card{grid-column:1/-1;order:4}
+  .phonegrid #colNotes>.card{grid-column:1/-1;order:4}
+  .phonegrid .phonehide{display:none}
+  body.gamepage header .attrib,body.gamepage header .claim,body.gamepage header .byline{display:none}
+  body.gamepage header{padding-bottom:8px}
+  .phonegrid .card[data-side="command"] #rogrid{max-height:132px;overflow-y:auto;overscroll-behavior:contain}
+  .phonegrid #atlasCard .scrub,.phonegrid #atlasCard .alab{display:none}
+  .phonegrid #atlasCard .legend{display:none}
+  .phonegrid #atlasCard h2 .sm{display:none}
+  .phonegrid #atlasCard,.phonegrid .card[data-side="command"]{padding:8px}
+  .phonegrid .card[data-side="command"]>.legend{display:none}
+}

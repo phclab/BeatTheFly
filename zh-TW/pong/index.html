@@ -20,7 +20,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 44'%3E%3Cellipse cx='26' cy='12' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(-22 26 12)'/%3E%3Cellipse cx='26' cy='20' rx='13' ry='6.5' fill='%23cde8ff' fill-opacity='.8' transform='rotate(22 26 20)'/%3E%3Cellipse cx='27' cy='24' rx='14' ry='9' fill='%233b4657'/%3E%3Cellipse cx='40' cy='22' rx='8.5' ry='7.5' fill='%232a3340'/%3E%3Cellipse cx='45.5' cy='19' rx='5' ry='5.2' fill='%23e2452f'/%3E%3Cellipse cx='45.5' cy='26' rx='4.4' ry='4.6' fill='%23e2452f'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="../../ui/app.css">
 </head>
-<body>
+<body class="gamepage">
 <header>
   <nav class="langs" aria-label="語言"><a href="../../pong/" data-lang="en" hreflang="en">English</a> / <a href="./" data-lang="zh-TW" hreflang="zh-Hant-TW" lang="zh-Hant-TW" aria-current="page">正體中文</a></nav>
   <h1 id="title"><a href="../" style="color:inherit;text-decoration:none">BeatTheFly</a></h1>
@@ -30,7 +30,7 @@
   <div class="byline">made by Po-Han Chiang @ NYCU</div>
 </header>
 
-<div class="wrap">
+<div class="wrap phonegrid">
   <div id="colBoard">
     <div class="card">
       <h2>球場</h2>
@@ -46,8 +46,8 @@
         <button id="newG">新的一局</button>
         <a href="../chess/" style="margin-left:auto;font-size:13px">下西洋棋 →</a>
       </div>
-      <div class="legend"><span>這隻果蠅是模仿一個程式化 Pong 玩家學會的：它沒有獎賞，也不做任何事先規劃。</span></div>
-      <div class="legend"><span>你是右邊的球拍。按鍵：<b>↑</b>／<b>↓</b> 或 <b>W</b>／<b>S</b>；觸控螢幕上直接在球場上拖曳。<b>空白鍵</b>暫停。</span></div>
+      <div class="legend phonehide"><span>這隻果蠅是模仿一個程式化 Pong 玩家學會的：它沒有獎賞，也不做任何事先規劃。</span></div>
+      <div class="legend phonehide"><span>你是右邊的球拍。按鍵：<b>↑</b>／<b>↓</b> 或 <b>W</b>／<b>S</b>；觸控螢幕上直接在球場上拖曳。<b>空白鍵</b>暫停。</span></div>
     </div>
   </div>
   <div id="colSide">
@@ -72,7 +72,7 @@
   </div>
 </div>
 <footer>
-  <span><b>資料來源與授權。</b>連結體、神經傳導物質標註、細胞體座標與神經元骨架：<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a>（雄性<i>黑腹果蠅</i>中樞神經系統，Janelia FlyEM 及合作者），依 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a> 授權使用。突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署。<span class="byline">made by Po-Han Chiang @ NYCU</span>。資料來源：一個程式化 Pong 玩家的動作。球場、遊戲模擬與腦圖譜繪製程式都是本專案的原創作品。</span>
+  <span><b>解剖連結體只給你接線，不給你突觸強度。我們的突觸強度是訓練出來的。</b> <b>資料來源與授權。</b>連結體、神經傳導物質標註、細胞體座標與神經元骨架：<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a>（雄性<i>黑腹果蠅</i>中樞神經系統，Janelia FlyEM 及合作者），依 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a> 授權使用。突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署。<span class="byline">made by Po-Han Chiang @ NYCU</span>。資料來源：一個程式化 Pong 玩家的動作。球場、遊戲模擬與腦圖譜繪製程式都是本專案的原創作品。</span>
   <span id="footck"></span>
 </footer>
 <div id="picker" hidden><div class="pbox">
