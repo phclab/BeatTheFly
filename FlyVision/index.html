@@ -77,8 +77,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 <video id="vid" playsinline muted style="display:none"></video>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-const S3=Math.sqrt(3);
+<script>const S3=Math.sqrt(3);
 let EYE_L,EYE_R,NL,NR,N,lum,lumP,lumD,DRAW,SRC,NBR,EYEREADY=false;
 function buildEye(xa,ya){
   const n=xa.length; let a=1e18,b=-1e18,c=1e18,dd=-1e18;
@@ -191,8 +190,6 @@ function makeOval(nApprox,aspect){
   const el=document.querySelectorAll('.eyelab'); if(el[0])el[0].textContent="Left eye L · "+NL; if(el[1])el[1].textContent="Right eye R · "+NR;
   document.getElementById("capR").textContent=N+" ommatidia";
 })();
-
-// ===== optic-lobe 3D LIF-RSNN (real spiking) + fixed views =====
 const olc=document.getElementById("ol"), OLstat=document.getElementById("olstatus");
 const OL={ready:false,rsnnReady:false,GAIN:0.012}; let olf=0;
 const LAYCOL=[[0.30,0.85,0.80],[0.34,0.88,0.52],[0.95,0.74,0.28],[0.95,0.42,0.90]];
@@ -245,7 +242,7 @@ function stepRSNN(){
   for(let e=0;e<pre.length;e++) syn[post[e]]+=ews[e]*sPrev[pre[e]];
   let fired=0; const G=OL.GAIN;
   for(let k=0;k<N;k++){ V[k]=LEAK*V[k]+drive[k]+G*syn[k]; if(V[k]>VTH){s[k]=1;V[k]-=VTH;fired++;} else s[k]=0; }
-  OL.sPrev=s; OL.s=sPrev; // swap: sPrev now = latest spikes
+  OL.sPrev=s; OL.s=sPrev;
   const rate=fired/N; OL.GAIN=Math.max(0.001,Math.min(0.06, G*Math.pow(TARGET/(rate+1e-4),0.03)));
   const sp=OL.sPrev; for(let k=0;k<N;k++) trace[k]=Math.max(trace[k]*0.80, sp[k]);
 }
@@ -254,5 +251,4 @@ function colorSoma(){const {N,layer,col,colAttr,trace}=OL;
   colAttr.needsUpdate=true;}
 const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Math.PI/2,0],top:[-Math.PI/2,0,0],bottom:[Math.PI/2,0,0]};
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
-  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
-</script>
+  document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));</script>
