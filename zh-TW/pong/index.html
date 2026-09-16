@@ -46,16 +46,17 @@
         <button id="newG">新的一局</button>
         <a href="../chess/" style="margin-left:auto;font-size:13px">下西洋棋 →</a>
       </div>
+      <div class="legend"><span>這隻果蠅是模仿一個程式化 Pong 玩家學會的：它沒有獎賞，也不做任何事先規劃。</span></div>
       <div class="legend"><span>你是右邊的球拍。按鍵：<b>↑</b>／<b>↓</b> 或 <b>W</b>／<b>S</b>；觸控螢幕上直接在球場上拖曳。<b>空白鍵</b>暫停。</span></div>
     </div>
   </div>
   <div id="colSide">
-    <div class="card" id="brainCard">
+    <div class="card" id="brainCard" data-side="picker">
       <h2>對手果蠅</h2>
       <div class="regions" id="brainList"></div>
       <div class="store"><span id="storeLine2"></span> <button id="clearStore2" class="sm" hidden>移除已下載的腦</button></div>
     </div>
-    <div class="card">
+    <div class="card" data-side="command">
       <h2>果蠅的球拍指令</h2>
       <div id="acts"></div>
       <div id="rogrid"></div>
@@ -68,14 +69,12 @@
       <h2>你正在和什麼對弈</h2>
       <div class="note" id="whatNote"><p>果蠅的球拍由一個脈衝神經網路移動，它依 MaleCNS 連結體中的一個<b>真實果蠅腦迴路</b>接線，突觸權重經過訓練。它每一幀看到六個數字（球的位置與速度，以及兩邊球拍的位置），回答不動、往上或往下。網路<b>每一幀走一個時間步</b>，每秒 60 幀，一局之中狀態從不重設。它是模仿一個程式化 Pong 玩家的動作學會的。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。</p></div>
     </div>
-    <div id="notePanels"></div>
   </div>
 </div>
 <footer>
   <span><b>資料來源與授權。</b>連結體、神經傳導物質標註、細胞體座標與神經元骨架：<a href="https://male-cns.janelia.org/" target="_blank" rel="noopener"><b>MaleCNS v1.0</b></a>（雄性<i>黑腹果蠅</i>中樞神經系統，Janelia FlyEM 及合作者），依 <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener"><b>CC-BY-4.0</b></a> 授權使用。突觸權重：以 <a href="https://arxiv.org/abs/2604.01295" target="_blank" rel="noopener">PHCSSM</a> 平行掃描模式訓練，以序列 RSNN 模式部署。<span class="byline">made by Po-Han Chiang @ NYCU</span>。資料來源：一個程式化 Pong 玩家的動作。球場、遊戲模擬與腦圖譜繪製程式都是本專案的原創作品。</span>
   <span id="footck"></span>
 </footer>
-<template id="mbNote"><p>在真實的果蠅中，這個迴路學習「氣味 → 獎賞」的關聯。這裡把完全相同的接線拿來控制 Pong 球拍：六個遊戲數字驅動 Kenyon cell，另一組由它們投射出的訊號驅動多巴胺神經元，迴路<b>每一幀走一個時間步</b>，球拍指令只從 97 個 MBON 的膜電位讀出，包括多巴胺閘控的快速權重記憶加在它們上面的部分。狀態在整局中延續，從不重設。</p></template>
 <div id="picker" hidden><div class="pbox">
   <h3>選擇與你對弈的果蠅腦</h3>
   <div class="sub">在你選擇之前不會下載任何東西。每個腦都是 MaleCNS 連結體中的一段真實迴路，各有自己訓練出的突觸權重，並完全在這個分頁中執行。你可以隨時更換腦。</div>
@@ -94,21 +93,20 @@
 <script type="module">
 import { t, dataFile } from '../../ui/i18n.js';
 import { openStore, modelPrefix, getComplete, usage, clearAll } from '../../engine/store.js';
-import { $, esc, SITE, ST, rpc, start, newSession, loadModel, recordFrame, drawBrain, refreshCharts, unpack, flySpriteSvg } from '../../ui/shell.js';
+import { $, esc, SITE, ST, rpc, start, newSession, loadModel, recordFrame, drawBrain, refreshCharts, refreshAtlas, unpack, flySpriteSvg } from '../../ui/shell.js';
 import { Pong, CONST, flyObs } from '../../engine/pong.js';
 
-const MB_NOTE = document.getElementById('mbNote').innerHTML;
 const CFG = (window.FLY_CONFIG || {}).pong || {}, QS = new URLSearchParams(location.search);
 const STEP_MS = 1000 / CONST.FPS, PH = CONST.PADDLE_H, PX = CONST.PADDLE_X, R = CONST.BALL_R;
 const ACT_LABEL = () => [t('stay'), t('up'), t('down')];
 let BRAINS = [], CUR = null, SWITCHING = false, GEN = 0, RO = null;
 const G = { game: null, running: false, over: false, pending: false, up: false, down: false, drag: null, act: 0, probs: [1, 0, 0],
-            nextT: 0, win: [], ms: [], draw: 0, hits: 0, lastEv: '', timer: 0, dirty: false, paints: [], bdraws: [], lastR: null, shown: null, chartT: 0 };
+            nextT: 0, win: [], ms: [], draw: 0, hits: 0, lastEv: '', timer: 0, dirty: false, paints: [], bdraws: [], lastR: null, shown: null, chartT: 0, lastBrain: 0, slowDraws: 0 };
 
 function specFor(b) {
   const c = (CFG.BRAINS || {})[b.key] || {};
   return { id: b.key, wsrc: QS.get('weights_' + b.key) || c.WEIGHTS_BASE || '', variant: QS.get('prec') || c.PRECISION || 'fp16w32',
-           skel: b.skel || 'data/mb_skel.json', note: b.id === 'mb' ? MB_NOTE : b.note,
+           skel: b.skel || 'data/mb_skel.json', note: b.note,
            region: b.id === 'mb' ? null : { id: b.id, name: b.name, intro: b.intro, cells: b.cells, rate_note: b.rate_note, strength: b.strength } };
 }
 const configured = b => { if (b.status) return false; const w = specFor(b).wsrc; return !!w && !/[<>]/.test(w); };
@@ -156,19 +154,8 @@ const setBusy = on => { if (on) $('brainList').setAttribute('aria-busy', 'true')
 function waitingState() {
   $('brainPanels').innerHTML = '<div class="card hero"><h2>' + t('Brain atlas') + '</h2><div class="legend"><span>' +
     t('Choose a fly brain to see its real traced neurons here; they light up as the circuit plays.') + '</span></div></div>';
-  $('notePanels').innerHTML = '';
   renderStatus(t('Choose your opponent') + ' <span style="color:var(--dim)">' + t('— pick a fly brain to start') + '</span>');
   drawCourt();
-}
-function updateWhat() {
-  const d = ST.info, b = cur(), name = d.region ? t(d.region.name).toLowerCase() : t('mushroom-body');
-  $('whatNote').innerHTML = '<p>' + t('The fly\'s paddle is moved by a spiking network wired from the <b>real MaleCNS {name} connectome</b> — ' +
-    '{H} measured neurons, {E} neuron-to-neuron connections, excitatory/inhibitory signs from neurotransmitter annotations. ' +
-    'It sees six numbers each frame (the ball\'s position and velocity and both paddles) and answers stay, up or down. ' +
-    'The network takes <b>one timestep per frame</b>, 60 frames per second, and its state is never reset during a game. ' +
-    'It learned by copying the actions of a scripted Pong player. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.',
-    { name: esc(name), H: d.H.toLocaleString('en-US'), E: Number(d.edges).toLocaleString('en-US') }) + '</p>' +
-    (b && b.blurb ? '<p>' + esc(b.blurb) + '</p>' : '');
 }
 
 async function chooseBrain(id) {
@@ -190,6 +177,18 @@ async function chooseBrain(id) {
   await newGame();
 }
 
+function updateWhat() {
+  if (!$('whatNote') || !ST.info) return;
+  const d = ST.info, b = cur(), name = d.region ? t(d.region.name).toLowerCase() : t('mushroom-body');
+  $('whatNote').innerHTML = '<p>' + t('The fly\'s paddle is moved by a spiking network wired from the <b>real MaleCNS {name} connectome</b> — ' +
+    '{H} measured neurons, {E} neuron-to-neuron connections, excitatory/inhibitory signs from neurotransmitter annotations. ' +
+    'It sees six numbers each frame (the ball\'s position and velocity and both paddles) and answers stay, up or down. ' +
+    'The network takes <b>one timestep per frame</b>, 60 frames per second, and its state is never reset during a game. ' +
+    'It learned by copying the actions of a scripted Pong player. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.',
+    { name: esc(name), H: d.H.toLocaleString('en-US'), E: Number(d.edges).toLocaleString('en-US') }) + '</p>' +
+    (b && b.blurb ? '<p>' + esc(b.blurb) + '</p>' : '');
+}
+
 function afterLoad() {
   updateWhat();
   RO = ST.readout ? { ...ST.readout } : null;
@@ -204,11 +203,15 @@ function afterLoad() {
     for (let i = 0; i < n; i++) { w[i] /= wm; steer[i] /= sm; }
     RO.w = w; RO.steer = steer;
     ST.highlight = { idx: RO.out_idx, w };
+    const cell = n <= 120 ? 14 : n <= 400 ? 10 : 7;
+    $('rogrid').style.gridTemplateColumns = 'repeat(auto-fill,minmax(' + cell + 'px,1fr))';
     $('rogrid').innerHTML = RO.out_idx.map((_, i) => {
       const s = RO.steer[i], a = (0.15 + 0.85 * Math.abs(s)).toFixed(2);
       return '<i style="background:' + (s >= 0 ? 'rgba(90,209,255,' + a + ')' : 'rgba(255,122,182,' + a + ')') + '"></i>';
     }).join('');
   } else { ST.highlight = null; $('rogrid').innerHTML = ''; }
+  GRID.prev = null; ST.fastAtlas = false; ST.strokeCap = 400;
+  if (ST.info && ST.info.atlas) refreshAtlas();
   renderActs();
 }
 
@@ -225,10 +228,16 @@ function updateActs() {
     rows[a].children[2].textContent = (100 * G.probs[a]).toFixed(1) + '%';
   }
 }
+const GRID = { prev: null };
 function updateGrid(bitsB64) {
   if (!RO) return;
-  const bits = unpack(bitsB64, ST.info.H), cells = $('rogrid').children;
-  for (let i = 0; i < cells.length; i++) cells[i].classList.toggle('on', !!bits[RO.out_idx[i]]);
+  const bits = unpack(bitsB64, ST.info.H), cells = $('rogrid').children, n = cells.length;
+  if (!GRID.prev || GRID.prev.length !== n) GRID.prev = new Uint8Array(n);
+  const prev = GRID.prev;
+  for (let i = 0; i < n; i++) {
+    const on = bits[RO.out_idx[i]] ? 1 : 0;
+    if (on !== prev[i]) { cells[i].classList.toggle('on', !!on); prev[i] = on; }
+  }
 }
 
 function renderStatus(html) {
@@ -346,8 +355,9 @@ function paint(now) {
   $('court').dataset.heading = Math.round(HEAD.ang * 180 / Math.PI);
   if (G.dirty || turning || (G.running && G.act && !REDUCED)) { G.dirty = false; drawCourt(); }
   const r = G.lastR;
-  if (r && r !== G.shown) {
-    G.shown = r;
+  const every = G.draw > 4 ? 33 : 0;
+  if (r && r !== G.shown && now - G.lastBrain >= every) {
+    G.shown = r; G.lastBrain = now;
     const t0 = performance.now();
     drawBrain(r); updateActs(); updateGrid(r.brain.bits);
     G.draw = performance.now() - t0;
@@ -417,6 +427,7 @@ requestAnimationFrame(paint);
 start({
   kind: 'pong',
   unit: 'frame',
+  minimal: true,
   fitExtra: 200,
   initialModel: () => (CUR ? specFor(cur()) : null),
   modelNote: () => '',
@@ -427,16 +438,7 @@ start({
   vocabText: v => t('{n} actions (stay, up, down)', { n: v }),
   onGameOver() {},
   onFinal() { return null; },
-  caveat(st, region) {
-    const b = cur() || {};
-    const s = b.strength ? esc(b.strength) : t('Its strength has not been measured yet.');
-    return {
-      html: t('<b>Honest caveat.</b> This fly learned by copying a scripted Pong player: it gets no reward, plans nothing ahead and has no ' +
-        'model of the game beyond what its trained wiring computes from the six numbers it sees.') + ' ' + s + ' ' +
-        t('Each paddle command is one timestep of the network. The interesting claim is <i>which substrate is computing</i>.'),
-      row: b.strength ? esc(b.strength) : t('not measured yet'),
-    };
-  },
+  caveat() { return { html: '', row: '' }; },
 }).then(() => {
   if (ST.model) { afterLoad(); setBusy(false); return newGame(); }
   waitingState(); showPicker(true);

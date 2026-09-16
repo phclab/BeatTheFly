@@ -92,7 +92,7 @@ function panelsSide() {
   </div>`;
   const rateNote = mb ? mbRateNote() : esc((REGION && REGION.rate_note) || '');
   const title = t('{name} atlas', { name: mb ? t('Mushroom body') : esc(t(ST.info.region.name)) });
-  return `
+  const atlasHtml = `
 <div class="card hero">
   <h2>${title} <span class="sm" id="atlasrc">${t('measured soma coordinates')}</span></h2>
   <div class="row" style="margin-bottom:10px">
@@ -111,14 +111,16 @@ function panelsSide() {
     <span id="atlasnote">${t('Dim = silent, bright = spiking on this timestep.')}</span>
   </div>
   <div class="legend" style="margin-top:4px"><span class="small" id="skelsrc"></span>
-    <span class="small">${t('every line is a traced neurite; firing changes brightness, never thickness')}</span>
-    <span class="small">${t('atlas redraw {ms}', { ms: '<b id="mDraw">—</b>' })}</span></div>
+    <span class="small" id="neuritenote">${t('every line is a traced neurite; firing changes brightness, never thickness')}</span>
+    <span class="small">${t('atlas redraw {ms}', { ms: '<b id="mDraw">—</b>' })}</span>
+    <span class="small" id="atlassub"></span></div>
   <div class="scrub">
     <button id="rewPlay" class="sm">${t('▶ replay game')}</button>
     <input type="range" id="scrub" min="0" max="0" value="0">
     <span class="lb" id="scrublb">${t('live')}</span>
   </div>
-</div>
+</div>`;
+  const restHtml = `
 <div class="card hero">
   <h2>${t('Continuous activity across the game')} <span class="sm">${t('state carried, never reset')}</span></h2>
   <canvas class="chart" id="gamec"></canvas>
@@ -146,6 +148,7 @@ ${mb ? `<div class="grid2">\n  ${danCard()}\n  ${hemiCard}\n</div>` : hemiCard}
     <div class="v">—</div><div class="s">${t('no move computed yet')}</div></div></div>
   <div class="legend"><span>${rateNote}</span></div>
 </div>`;
+  return (PAGE && PAGE.minimal) ? atlasHtml : atlasHtml + restHtml;
 }
 
 function mbCells() {
@@ -204,7 +207,9 @@ function circuitCard() {
 
 function renderPanels() {
   $('brainPanels').innerHTML = panelsSide();
-  $('notePanels').innerHTML = circuitCard();
+  const notes = $('notePanels');
+  if (notes) notes.innerHTML = (PAGE && PAGE.minimal) ? '' : circuitCard();
+  orderSide();
   wirePanels();
 }
 
@@ -335,8 +340,11 @@ function buildAtlas() {
   const Hd = Math.round(Wd * (ST.proj === 'dorsal' ? 0.62 : 0.70));
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const c = $('atlas'); c.width = Math.round(Wd * dpr); c.height = Math.round(Hd * dpr); c.style.height = Hd + 'px';
-  if (SKEL) projectSkel(Wd, Hd); else SOMA = layoutSoma(Wd, Hd);
+  if (SKEL) projectSkel(Wd, Hd);
+  if (!SKEL || ST.fastAtlas) SOMA = layoutSoma(Wd, Hd);
   ATLAS = { dpr, bg: renderBg(Wd, Hd, dpr) };
+  const nn = $('neuritenote');
+  if (nn) nn.style.display = ST.fastAtlas ? 'none' : '';
   drawAtlas(...currentBits());
 }
 
@@ -350,7 +358,7 @@ function renderBg(Wd, Hd, dpr) {
   x.beginPath(); x.moveTo(Wd / 2, 0); x.lineTo(Wd / 2, Hd); x.stroke(); x.setLineDash([]);
   const NAMES = ST.info.class_names;
   x.lineCap = 'round'; x.lineJoin = 'round';
-  if (SKEL) {
+  if (SKEL && !ST.fastAtlas) {
     for (const cname of drawOrder()) {
       const ci = NAMES.indexOf(cname); if (ci < 0) continue;
       const col = colorOf(cname), [dim, lw] = styleOf(cname);
@@ -363,6 +371,21 @@ function renderBg(Wd, Hd, dpr) {
       const col = colorOf(NAMES[ST.info.cls[i]]);
       x.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0.14)';
       x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i], 0, 6.283); x.fill();
+    }
+  }
+  const HL = ST.highlight;
+  if (HL && SKEL && !ST.fastAtlas) {
+    x.lineWidth = 0.9 / dpr;
+    for (let k = 0; k < HL.idx.length; k++) {
+      x.strokeStyle = 'rgba(255,196,71,' + (0.10 + 0.35 * HL.w[k]).toFixed(3) + ')';
+      strokeNeuron(x, HL.idx[k]);
+    }
+  } else if (HL && SOMA) {
+    x.lineWidth = 1.2;
+    for (let k = 0; k < HL.idx.length; k++) {
+      const i = HL.idx[k];
+      x.strokeStyle = 'rgba(255,196,71,' + (0.25 + 0.5 * HL.w[k]).toFixed(3) + ')';
+      x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 2.2, 0, 6.283); x.stroke();
     }
   }
   x.font = '10px ui-monospace,monospace'; x.fillStyle = '#46536b'; x.textAlign = 'center';
@@ -383,7 +406,7 @@ export function drawAtlas(bits, vf) {
   const NAMES = ST.info.class_names;
   const t0 = performance.now();
   if (ST.memory && vf) {
-    if (SKEL) {
+    if (SKEL && !ST.fastAtlas) {
       x.globalCompositeOperation = 'lighter';
       x.strokeStyle = 'rgba(255,196,71,0.055)'; x.lineWidth = 0.7 / ATLAS.dpr;
       for (let i = 0; i < ST.info.H; i++) if (vf[i] > 150) strokeNeuron(x, i);
@@ -395,33 +418,47 @@ export function drawAtlas(bits, vf) {
     }
   }
   const HL = ST.highlight;
-  if (HL && SKEL) {
+  if (HL && bits && SKEL && !ST.fastAtlas) {
     x.globalCompositeOperation = 'lighter';
-    for (let k = 0; k < HL.idx.length; k++) {
-      const i = HL.idx[k], on = bits && bits[i];
-      x.strokeStyle = 'rgba(255,196,71,' + (on ? 0.95 : 0.10 + 0.35 * HL.w[k]).toFixed(3) + ')';
-      x.lineWidth = (on ? 1.4 : 0.9) / ATLAS.dpr;
-      strokeNeuron(x, i);
-    }
+    x.strokeStyle = 'rgba(255,196,71,0.95)'; x.lineWidth = 1.4 / ATLAS.dpr;
+    for (let k = 0; k < HL.idx.length; k++) if (bits[HL.idx[k]]) strokeNeuron(x, HL.idx[k]);
     x.globalCompositeOperation = 'source-over';
-  } else if (HL && SOMA) {
+  } else if (HL && bits && SOMA) {
+    x.strokeStyle = 'rgba(255,196,71,1)'; x.lineWidth = 1.2;
     for (let k = 0; k < HL.idx.length; k++) {
-      const i = HL.idx[k], on = bits && bits[i];
-      x.strokeStyle = 'rgba(255,196,71,' + (on ? 1 : 0.25 + 0.5 * HL.w[k]).toFixed(3) + ')';
-      x.lineWidth = 1.2; x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 2.2, 0, 6.283); x.stroke();
+      const i = HL.idx[k];
+      if (!bits[i]) continue;
+      x.beginPath(); x.arc(SOMA.pos[2 * i], SOMA.pos[2 * i + 1], SOMA.rad[i] * 2.2, 0, 6.283); x.stroke();
     }
   }
   if (bits) {
-    if (SKEL) {
+    if (SKEL && !ST.fastAtlas) {
+      let spikeN = 0;
+      for (let i = 0; i < ST.info.H; i++) if (bits[i]) spikeN++;
+      const cap = ST.strokeCap | 0;
+      const k = (cap && spikeN > cap) ? Math.ceil(spikeN / cap) : 1;
+      ATLAS.rot = k > 1 ? (((ATLAS.rot || 0) + 1) % k) : 0;
+      let seen = 0, drawn = 0;
       x.globalCompositeOperation = 'lighter';
       for (const cname of drawOrder()) {
         const ci = NAMES.indexOf(cname); if (ci < 0) continue;
         const col = colorOf(cname), [, lw, hot] = styleOf(cname);
         x.strokeStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + hot + ')';
         x.lineWidth = lw / ATLAS.dpr;
-        for (let i = 0; i < ST.info.H; i++) if (ST.info.cls[i] === ci && bits[i]) strokeNeuron(x, i);
+        for (let i = 0; i < ST.info.H; i++) {
+          if (ST.info.cls[i] !== ci || !bits[i]) continue;
+          if (k > 1 && ((seen++ + ATLAS.rot) % k)) continue;
+          drawn++; strokeNeuron(x, i);
+        }
       }
       x.globalCompositeOperation = 'source-over';
+      if (k !== ATLAS.lastK) {
+        ATLAS.lastK = k;
+        const sub = $('atlassub');
+        if (sub) sub.textContent = k > 1
+          ? t('{n} of the {m} spiking cells are drawn each frame, rotating, so the game keeps real time', { n: drawn, m: spikeN })
+          : '';
+      }
     } else if (SOMA) {
       for (let i = 0; i < bits.length; i++) { if (!bits[i]) continue;
         const col = colorOf(NAMES[ST.info.cls[i]]);
@@ -471,6 +508,7 @@ function hemiBar(a, bId, g) {
   $(a).style.width = (100 * g.L / m) + '%'; $(bId).style.width = (100 * g.R / m) + '%';
 }
 function renderClasses(g) {
+  if (!$('classes')) return;
   $('classes').innerHTML = panelClasses().filter(n => g[n]).map(n =>
     '<div class="metric"><div class="k"><span class="dot" style="background:' + dotColor(n) + '"></span>' + esc(cname(n)) +
     ' <span style="color:#55617a">n=' + (ST.info ? ST.info.groups[n] : '') + '</span></div>' +
@@ -488,12 +526,13 @@ function onStep(ev) {
   $('scrub').value = ST.bits.length - 1;
   $('scrublb').textContent = t('live · t={t}', { t: ev.t });
   drawAtlas(unpack(b.bits, ST.info.H), b.vf ? unpackBytes(b.vf, ST.info.H) : null);
-  $('mRate').textContent = (100 * b.rate).toFixed(1) + '%';
-  $('mRateS').textContent = t('{n} of {H}', { n: b.n_active, H: ST.info.H });
+  const setTxt = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  setTxt('mRate', (100 * b.rate).toFixed(1) + '%');
+  setTxt('mRateS', t('{n} of {H}', { n: b.n_active, H: ST.info.H }));
   const e = ev.entry;
-  $('mOvP').textContent = e.overlap_prev == null ? '—' : (100 * e.overlap_prev).toFixed(0) + '%';
-  $('mOv1').textContent = e.overlap_first == null ? '—' : (100 * e.overlap_first).toFixed(0) + '%';
-  $('mMs').textContent = t('{n} ms', { n: ev.ms.toFixed(perFrame() ? 2 : 0) });
+  setTxt('mOvP', e.overlap_prev == null ? '—' : (100 * e.overlap_prev).toFixed(0) + '%');
+  setTxt('mOv1', e.overlap_first == null ? '—' : (100 * e.overlap_first).toFixed(0) + '%');
+  setTxt('mMs', t('{n} ms', { n: ev.ms.toFixed(perFrame() ? 2 : 0) }));
   if ($('bulb')) {
     $('bulb').classList.toggle('on', !!b.dan_gate_open);
     $('mech').classList.toggle('fire', !!b.dan_gate_open);
@@ -512,6 +551,7 @@ export function recordFrame(ev) {
   if (ST.hist.length > FRAME_WINDOW) ST.hist.shift();
 }
 export const drawBrain = ev => onStep(ev);
+export const refreshAtlas = () => buildAtlas();
 export const refreshCharts = () => drawGameCharts();
 
 export function renderCands(cands) {
@@ -540,6 +580,7 @@ function drawGameCharts() {
   })), 1.0, n, 132, t('timestep →'));
   const ms = h.map(e => e.ms);
   const dg = perFrame() ? 2 : 0;
+  if (!$('mMsS')) return;
   $('mMsS').textContent = t('first {a} · last {b} ms', { a: ms[0].toFixed(dg), b: ms[ms.length - 1].toFixed(dg) });
 }
 
@@ -688,7 +729,7 @@ export function fitBoard() {
   const inner = wrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const hdr = document.querySelector('header').offsetHeight;
   const byH = innerHeight - hdr - ((PAGE && PAGE.fitExtra) || 95);
-  const byW = Math.min(0.62 * innerWidth, inner - 16 - 340 - 30);
+  const byW = Math.min(0.78 * innerWidth, inner - 16 - 170 - 30);
   const size = Math.round(Math.max(360, Math.min(byH, byW, 960)));
   root.style.setProperty('--bcol', (size + 30) + 'px');
 }
@@ -740,6 +781,17 @@ function wirePanels() {
   };
 }
 
+function orderSide() {
+  const col = $('colSide'), bp = $('brainPanels'); if (!col) return;
+  const stale = $('atlasCard');
+  if (stale && bp && !bp.contains(stale)) stale.remove();
+  const wrap = bp && bp.querySelector('#atlaswrap');
+  const atlas = wrap ? wrap.closest('.card') : null;
+  if (atlas) atlas.id = 'atlasCard';
+  const first = [atlas, col.querySelector('[data-side="command"]'), col.querySelector('[data-side="picker"]')].filter(Boolean);
+  for (let i = first.length - 1; i >= 0; i--) col.insertBefore(first[i], col.firstChild);
+}
+
 function wirePage() {
   [['tg0', 0], ['tg1', 0.5], ['tg2', 1.0]].forEach(([id, temp]) => {
     if ($(id)) $(id).onclick = () => { ST.temp = temp; ['tg0', 'tg1', 'tg2'].forEach(i => $(i).classList.toggle('on', i === id)); };
@@ -767,6 +819,7 @@ function defaultModel(kind) {
 
 export async function start(page) {
   PAGE = page;
+  orderSide();
   fitBoard();
   flyInit();
   wirePage();
@@ -856,22 +909,22 @@ export async function loadModel(spec) {
       : t('— legal top-1 {a}/{b} plies, max |Δlogit| {e}', { a: sc.legal_top1_agree, b: sc.plies, e: sc.max_abs_logit_diff.toExponential(1) })) : '—'],
     [t('engine load'), t('{s} s', { s: ((performance.now() - t0) / 1000).toFixed(1) })],
   );
-  $('facts').innerHTML = rows.map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
+  if ($('facts')) $('facts').innerHTML = rows.map(([a, b]) => '<tr><td>' + a + '</td><td>' + b + '</td></tr>').join('');
   $('footck').textContent = ' ' + t('Model: {label} ({variant} weights).', { label: man.label, variant: r.variant });
   let st = null;
   try { const rs = await fetch(new URL(dataFile('data/strength_' + PAGE.kind + '.json'), SITE)); if (rs.ok) st = await rs.json(); } catch (_) {}
   const cv = PAGE.caveat(st, REGION);
-  $('caveat').innerHTML = cv.html;
-  if (cv.row) {
+  if ($('caveat')) $('caveat').innerHTML = cv.html;
+  if (cv.row && $('facts')) {
     const tb = $('facts'), tr = document.createElement('tr');
     tr.innerHTML = '<td>' + (perFrame() ? t('record') : t('strength')) + '</td><td>' + cv.row + '</td>';
     const modelRow = [...tb.children].find(x => x.firstChild && x.firstChild.textContent === t('model'));
     tb.insertBefore(tr, modelRow || null);
   }
-  $('hdL').textContent = d.nL; $('hdR').textContent = d.nR;
+  if ($('hdL')) { $('hdL').textContent = d.nL; $('hdR').textContent = d.nR; }
   for (const [id, n] of [['cKC', 'KC'], ['cMBON', 'MBON'], ['cDAN', 'DAN'], ['cAPL', 'APL'], ['danTot', 'DAN']])
     if ($(id)) $(id).textContent = g[n];
-  if (d.cross) {
+  if (d.cross && $('mCross')) {
     $('mCross').textContent = (100 * d.cross.frac).toFixed(1) + '%';
     $('mCrossS').textContent = t('{a} of {b}', { a: Number(d.cross.cross).toLocaleString('en-US'), b: Number(d.cross.edges).toLocaleString('en-US') });
     $('mRL').textContent = Number(d.cross.R_to_L).toLocaleString('en-US') + ' / ' + Number(d.cross.L_to_R).toLocaleString('en-US');

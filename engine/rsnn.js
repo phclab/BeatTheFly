@@ -65,6 +65,8 @@ export class FlyRSNN {
     this.S = S;
     this.H = S.H;
     this.fw = (S.mode || 'dan') === 'dan';
+    this.fwCur = S.fw_write === 'current';
+    this.mech = !!S.mech;
     this.dense = S.input === 'dense';
     Object.assign(this, {
       encTok: T.enc_tok_T, encTokB: T.enc_tok_b, lnTokW: T.ln_tok_w, lnTokB: T.ln_tok_b,
@@ -75,6 +77,14 @@ export class FlyRSNN {
       cp: T.W_colptr, ri: T.W_rowidx, wv: T.W_vals,
     });
     if (this.dense) Object.assign(this, { encObs: T.enc_obs_T, encObsB: T.enc_obs_b, lnObsW: T.ln_obs_w, lnObsB: T.ln_obs_b, dObs: S.d_obs });
+    if (this.mech) {
+      this.nGate = S.n_gate; this.nOut = S.n_out; this.nInP = S.n_in; this.fwE = S.fw_edges;
+      Object.assign(this, { teach: T.teach_T, teachB: T.teach_b, Wgate: T.W_gate, Wval: T.W_val,
+                            gate: T.gate_idx, outP: T.out_idx, fwIn: T.fw_in, fwOut: T.fw_out, gamma: T.gamma || null });
+      this.decay = !!S.decay && !!T.gamma;
+      this._vout = new Float32Array(this.nOut); this._gv = new Float32Array(this.nOut);
+      this._firedIn = new Uint8Array(this.nInP);
+    }
     if (this.fw) {
       this.nkc = S.n_kc; this.nmb = S.n_mbon; this.ndan = S.n_dan;
       Object.assign(this, { v2d: T.v2d_T, v2dB: T.v2d_b, Wg: T.Wg, Wdv: T.W_dan_val,
@@ -92,7 +102,7 @@ export class FlyRSNN {
     const H = this.H;
     this.Vf = new Float32Array(H); this.Vres = new Float32Array(H);
     this.spk = new Uint8Array(H);
-    this.M = this.fw ? new Float32Array(this.nkc * this.nmb) : null;
+    this.M = this.mech ? new Float32Array(this.fwE) : this.fw ? new Float32Array(this.nkc * this.nmb) : null;
   }
 
   _ln(x, w, b, out) {
@@ -129,7 +139,14 @@ export class FlyRSNN {
         drive[i] = f(da * (this.inMask[i] ? Math.abs(emb) : 0));
       }
     }
-    if (this.fw && this.dense) {
+    if (this.mech) {
+      const ng = this.nGate, D = this.dObs, pre = new Float64Array(ng);
+      for (let j = 0; j < D; j++) { const o = f(act[j]), off = j * ng; for (let d = 0; d < ng; d++) pre[d] += o * this.teach[off + d]; }
+      for (let d = 0; d < ng; d++) {
+        const i = this.gate[d];
+        drive[i] = f(drive[i] + f(S.dan_teach * Math.abs(f(f(pre[d]) + this.teachB[d]))));
+      }
+    } else if (this.fw && this.dense) {
       const nd = this.ndan, D = this.dObs, pre = new Float64Array(nd);
       for (let j = 0; j < D; j++) { const o = f(act[j]), off = j * nd; for (let d = 0; d < nd; d++) pre[d] += o * this.v2d[off + d]; }
       for (let d = 0; d < nd; d++) {
@@ -151,7 +168,15 @@ export class FlyRSNN {
       if (!prev[j]) continue;
       for (let k = cp[j], e = cp[j + 1]; k < e; k++) syn[ri[k]] += wv[k];
     }
-    if (this.fw) {
+    if (this.mech) {
+      const nOut = this.nOut, ng = this.nGate;
+      for (let m = 0; m < nOut; m++) {
+        let g = 0; const o = m * ng;
+        for (let d = 0; d < ng; d++) if (prev[this.gate[d]]) g += this.Wgate[o + d];
+        const i = this.outP[m];
+        syn[i] = f(f(syn[i]) * f(1 / (1 + Math.exp(-f(g)))));
+      }
+    } else if (this.fw) {
       const nmb = this.nmb, ndan = this.ndan;
       for (let m = 0; m < nmb; m++) {
         let g = 0; const o = m * ndan;
@@ -175,6 +200,18 @@ export class FlyRSNN {
       out[i] = f(vfin - this.vth[i]) > 0 ? 1 : 0;
     }
 
+    const Vout = this._vout;
+    if (this.mech) {
+      const nOut = this.nOut, nIn = this.nInP, fired = this._firedIn, E = this.fwE, lam = S.lam;
+      for (let m = 0; m < nOut; m++) Vout[m] = Vfinal[this.outP[m]];
+      for (let q = 0; q < nIn; q++) fired[q] = out[this.inp[q]];
+      for (let e = 0; e < E; e++) {
+        if (!fired[this.fwIn[e]]) continue;
+        const o = this.fwOut[e];
+        Vout[o] = f(Vout[o] + f(lam * this.M[e]));
+      }
+    }
+
     const Vaug = this.Vaug; Vaug.set(Vfinal);
     if (this.fw) {
       const M = this.M, nkc = this.nkc, kc = this.kc, nmb = this.nmb;
@@ -192,7 +229,15 @@ export class FlyRSNN {
       const ids = opts.logits, n = ids.length;
       logits = new Float32Array(n);
       const dec = this.dec, pop = this.outIdx;
-      if (pop) {
+      if (this.mech) {
+        const np2 = this.nOut;
+        for (let k = 0; k < n; k++) {
+          const v = ids[k], o = v * np2;
+          let s = 0;
+          for (let i = 0; i < np2; i++) s += dec[o + i] * Vout[i];
+          logits[k] = f(f(s) + this.decB[v]);
+        }
+      } else if (pop) {
         const np = pop.length;
         for (let k = 0; k < n; k++) {
           const v = ids[k], o = v * np;
@@ -210,6 +255,23 @@ export class FlyRSNN {
       }
     }
 
+    if (this.mech) {
+      const M = this.M, nOut = this.nOut, ng = this.nGate, E = this.fwE, gv = this._gv, fired = this._firedIn;
+      for (let m = 0; m < nOut; m++) {
+        let g = 0, v = 0; const o = m * ng;
+        for (let d = 0; d < ng; d++) if (out[this.gate[d]]) { g += this.Wgate[o + d]; v += this.Wval[o + d]; }
+        gv[m] = f(f(1 / (1 + Math.exp(-f(g)))) * f(Math.tanh(f(v))));
+      }
+      if (this.decay) {
+        const gam = this.gamma;
+        for (let e = 0; e < E; e++) M[e] = f(gam[this.fwOut[e]] * M[e]);
+      }
+      for (let e = 0; e < E; e++) {
+        if (!fired[this.fwIn[e]]) continue;
+        M[e] = f(M[e] + gv[this.fwOut[e]]);
+      }
+    }
+
     if (this.fw) {
       const M = this.M, nkc = this.nkc, kc = this.kc, nmb = this.nmb, ndan = this.ndan;
       const gv = new Float32Array(nmb);
@@ -218,8 +280,9 @@ export class FlyRSNN {
         for (let d = 0; d < ndan; d++) if (out[this.dan[d]]) { g += this.Wg[o + d]; v += this.Wdv[o + d]; }
         gv[m] = f(f(1 / (1 + Math.exp(-f(g)))) * f(Math.tanh(f(v))));
       }
+      const key = this.fwCur ? out : prev;
       for (let q = 0; q < nkc; q++) {
-        if (!prev[kc[q]]) continue;
+        if (!key[kc[q]]) continue;
         const o = q * nmb;
         for (let m = 0; m < nmb; m++) M[o + m] = f(M[o + m] + gv[m]);
       }

@@ -63,7 +63,7 @@
       </div>
       <div class="moves" id="movelist"><span class="dim">No moves yet.</span></div>
     </div>
-    <div class="card">
+    <div class="card" data-side="command">
       <h2>Candidate moves</h2>
       <div id="cands"><div class="legend"><span>Make a move — the fly's move distribution appears
         here.</span></div></div>
@@ -82,6 +82,7 @@
   neurotransmitter annotations. On the right, those neurons are drawn at their <b>real measured soma
   positions</b> and light up as the circuit runs. The network's state is <b>never reset</b>: it carries
   forward from move to move, so what you see at move 40 descends from move 1. The whole network runs <b>in your browser</b> (a Web Worker) — no server computes anything.</p></div>
+      <p class="warn" id="caveat"></p>
     </div>
     <div id="notePanels"></div>
   </div>
@@ -306,6 +307,7 @@ $('undo').onclick = () => {
 
 start({
   kind: 'othello',
+  minimal: true,
   modelNote: () => t('learning & memory: pattern → value'),
   render: () => render(),
   sync: () => render(),

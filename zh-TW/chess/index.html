@@ -51,7 +51,7 @@
     </div>
   </div>
   <div id="colSide">
-    <div class="card" id="regionCard">
+    <div class="card" id="regionCard" data-side="picker">
       <h2>對手的腦區</h2>
       <div class="regions" id="regionList"></div>
       <div class="legend"><span id="regionNote">每個腦區都是一段真實的果蠅神經迴路，各有自己訓練出的突觸權重。切換腦區不會中斷棋局：新的腦會把目前為止的棋步逐一讀過，每步一個時間步。</span></div>
@@ -67,7 +67,7 @@
       </div>
       <div class="moves" id="movelist"><span class="dim">尚無棋步。</span></div>
     </div>
-    <div class="card">
+    <div class="card" data-side="command">
       <h2>候選棋步</h2>
       <div id="cands"><div class="legend"><span>走一步棋後，果蠅的棋步機率分布會顯示在這裡。</span></div></div>
       <div class="legend"><span>機率是讀出層只在<b>合法棋步</b>上的分布（由 chess.js 判定合法性，所以果蠅一定會下出合法棋步）。</span></div>
@@ -78,6 +78,8 @@
     <div class="card">
       <h2>你正在和什麼對弈</h2>
       <div class="note" id="whatNote"><p>每一步棋都由一個脈衝神經網路計算，它依<b>真實的 MaleCNS 蘑菇體連結體</b>接線：4,510 個實測神經元、1,027,152 條神經元之間的連結，興奮／抑制符號取自神經傳導物質標註。右側把這些神經元畫在它們<b>真實量測到的細胞體位置</b>，並隨著迴路運作而亮起。網路狀態<b>從不重設</b>：它一步一步延續下去，所以你在第 40 步看到的活動，是從第 1 步一路延續而來。整個網路都<b>在你的瀏覽器中</b>執行（Web Worker），沒有任何伺服器參與運算。</p></div>
+    
+      <p class="warn" id="caveat"></p>
     </div>
     <div id="notePanels"></div>
   </div>
@@ -587,6 +589,7 @@ start({
   initialModel: () => (CUR ? specFor(REGIONS.find(r => r.id === CUR)) : null),
   modelNote: () => ((REGIONS.find(r => r.id === CUR) || {}).desc || ''),
   kind: 'chess',
+  minimal: true,
   render: boardRender,
   sync: syncBoard,
   renderStatus,

@@ -1,6 +1,7 @@
 {
  "brains": {
-  "cx": "In 20 games to 11 against each scripted player: won 18 against a noisy scripted player like the one it learned from, won all 20 against a weaker one, and lost all 20 to a perfect one, while still returning 95.7% of its shots.",
-  "mb": null
+  "cx": "In 20 games to 11 against each scripted player: 11–9 against a noisy scripted player like the one it learned from (point share 0.52, returning 88.2% of its shots), 20–0 against a weaker one, and 0–20 against a perfect one.",
+  "al": "In 20 games to 11 against each scripted player: 20–0 against a noisy scripted player like the one it learned from (point share 0.74, returning 95.2% of its shots), 20–0 against a weaker one, and 0–20 against a perfect one.",
+  "mb": "In 20 games to 11 against each scripted player: 10–10 against a noisy scripted player like the one it learned from (point share 0.51, returning 87.0% of its shots), 20–0 against a weaker one, and 0–20 against a perfect one."
  }
 }

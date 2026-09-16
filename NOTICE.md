@@ -10,7 +10,7 @@ The code in this repository is licensed under GPL-3.0-or-later (see LICENSE). Th
 
 * The chess brain-region weights (AntennalLobe_Chess, loaded from https://huggingface.co/phclab/AntennalLobe_Chess, CentralComplex_Chess, loaded from https://huggingface.co/phclab/CentralComplex_Chess)
   -- CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/).
-* The Pong weights (CentralComplex_Pong, loaded from https://huggingface.co/phclab/CentralComplex_Pong)
+* The Pong weights (CentralComplex_Pong, loaded from https://huggingface.co/phclab/CentralComplex_Pong, AntennalLobe_Pong, loaded from https://huggingface.co/phclab/AntennalLobe_Pong, MushroomBody_Pong, loaded from https://huggingface.co/phclab/MushroomBody_Pong)
   -- CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/).
 * `data/skel_*.json` (brain-region neuron skeletons) -- derived from MaleCNS v1.0, CC-BY-4.0.
 

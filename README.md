@@ -16,11 +16,11 @@ made by Po-Han Chiang @ NYCU
 
 **Play:** https://phclab.github.io/BeatTheFly/  ·  **Weights:** [MushroomBody_Chess](https://huggingface.co/phclab/MushroomBody_Chess),
 [AntennalLobe_Chess](https://huggingface.co/phclab/AntennalLobe_Chess), [CentralComplex_Chess](https://huggingface.co/phclab/CentralComplex_Chess) and
-[MushroomBody_Othello](https://huggingface.co/phclab/MushroomBody_Othello) and [CentralComplex_Pong](https://huggingface.co/phclab/CentralComplex_Pong) on Hugging Face
+[MushroomBody_Othello](https://huggingface.co/phclab/MushroomBody_Othello) and [CentralComplex_Pong](https://huggingface.co/phclab/CentralComplex_Pong), [AntennalLobe_Pong](https://huggingface.co/phclab/AntennalLobe_Pong), [MushroomBody_Pong](https://huggingface.co/phclab/MushroomBody_Pong) on Hugging Face
 
 ## How to play
 Open the page and pick a game. Each game page downloads only its own weights (chess about
-49.5 MB, Othello about 7.6 MB, Pong about 2.3 MB; kept in the browser afterwards).
+49.5 MB, Othello about 7.6 MB, Pong about 2.4 MB; kept in the browser afterwards).
 
 * **Chess** (`chess/`): drag or click a piece to move. Play White or Black, flip the board, take a move
   back, or let the fly sample its move with a temperature instead of always playing its top choice.

@@ -253,5 +253,6 @@ export default {
 "actions": "動作",
 "— top-1 {a}/{b} frames, max |Δlogit| {e}": "— 第一選擇一致 {a}/{b} 幀，最大 |Δlogit| {e}",
 "Rally hits: {n}": "本回合擊球：{n} 次",
-"record": "戰績"
+"record": "戰績",
+"{n} of the {m} spiking cells are drawn each frame, rotating, so the game keeps real time": "每一幀從 {m} 個發放的細胞中輪流畫出 {n} 個，好讓遊戲維持即時"
 };
