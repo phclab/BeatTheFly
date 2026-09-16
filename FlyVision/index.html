@@ -247,7 +247,7 @@ function stepRSNN(){
   const {N,layer,pre,post,ews,laI,laX,laY,laD,V,s,sPrev,trace,drive,syn}=OL;
   const im=ox.getImageData(0,0,off.width,off.height).data,WW=off.width;
   drive.fill(0);
-  for(let q=0;q<laI.length;q++){const p=(laY[q]*WW+laX[q])*4; const cur=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255; const dd=laD[q]; laD[q]=dd+(cur-dd)*0.14; drive[laI[q]]=Math.min(1.5,Math.abs(cur-dd)*DRIVEG);}
+  for(let q=0;q<laI.length;q++){const p=(laY[q]*WW+laX[q])*4; const cur=(0.299*im[p]+0.587*im[p+1]+0.114*im[p+2])/255; const dd=laD[q]; laD[q]=dd+(cur-dd)*0.14; drive[laI[q]]=Math.min(2.0, cur*1.2 + Math.abs(cur-dd)*3.0);}
   syn.fill(0);
   for(let e=0;e<pre.length;e++) syn[post[e]]+=ews[e]*sPrev[pre[e]];
   let fired=0; const G=OL.GAIN;
