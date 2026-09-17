@@ -17,6 +17,7 @@ header .attrib a{color:var(--gold);text-decoration:underline;text-underline-offs
 header .attrib .sep{color:var(--dim);margin:0 4px}
 header .claim{margin-top:4px;font-size:14px;font-weight:600;color:var(--accent);line-height:1.4}
 header .byline{margin-top:3px;font-size:12px;color:var(--dim);letter-spacing:.2px}
+header .byline a{color:inherit;text-decoration:underline}
 @media (max-width:600px){header{padding:13px 14px 10px} header h1{font-size:21px} header .tagline{font-size:14px}
   header .attrib{font-size:12.5px} header .claim{font-size:13px} header .attrib .sep{display:block;height:0;overflow:hidden;margin:0}}
 .wrap{display:grid;grid-template-columns:var(--bcol,430px) minmax(170px,280px);grid-template-areas:"board side" "notes side";
