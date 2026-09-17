@@ -333,5 +333,6 @@ const VIEWS={front:[0,0,0],back:[0,Math.PI,0],left:[0,-Math.PI/2,0],right:[0,Mat
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{const v=VIEWS[b.dataset.view];if(OL.setView)OL.setView(v[0],v[1],v[2]);
   document.querySelectorAll('[data-view]').forEach(x=>{x.setAttribute('aria-pressed',x===b);x.classList.toggle('on',x===b);});}));
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "ed90c191314a4bd1b54a671616598fbd"}'></script>
 </body>
 </html>
