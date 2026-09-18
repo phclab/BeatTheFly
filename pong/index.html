@@ -422,6 +422,7 @@ court.addEventListener('pointerdown', e => { if (!G.game) return; court.setPoint
 court.addEventListener('pointermove', e => { if (G.drag != null) G.drag = dragY(e); });
 const endDrag = () => { G.drag = null; };
 court.addEventListener('pointerup', endDrag); court.addEventListener('pointercancel', endDrag);
+court.addEventListener('touchmove', e => { if (G.game) e.preventDefault(); }, { passive: false });
 $('play').onclick = () => (G.running ? pause() : play());
 $('newG').onclick = () => { if (ST.model && !SWITCHING) newGame(); };
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.running) pause(); });

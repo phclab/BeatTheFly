@@ -267,6 +267,7 @@ header{position:relative}
   .phonegrid .phonehide{display:none}
   body.gamepage header .attrib,body.gamepage header .claim,body.gamepage header .byline{display:none}
   body.gamepage header{padding-bottom:8px}
+  body.gamepage{overscroll-behavior:none}
   .phonegrid .card[data-side="command"] #rogrid{max-height:132px;overflow-y:auto;overscroll-behavior:contain}
   .phonegrid #atlasCard .scrub,.phonegrid #atlasCard .alab{display:none}
   .phonegrid #atlasCard .legend{display:none}
