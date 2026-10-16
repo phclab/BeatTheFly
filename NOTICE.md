@@ -14,7 +14,7 @@ The code in this repository is licensed under GPL-3.0-or-later (see LICENSE). Th
   -- CC-BY-NC-4.0 (https://creativecommons.org/licenses/by-nc/4.0/).
 * `data/skel_*.json` (brain-region neuron skeletons) -- derived from MaleCNS v1.0, CC-BY-4.0.
 
-All weights are derived from the CC-BY-4.0 connectome and trained with PHCSSM (https://arxiv.org/abs/2604.01295).
+All weights are derived from the CC-BY-4.0 connectome and trained with PHCSSM (https://doi.org/10.1016/j.array.2026.101315).
 
 Chess: Data sources: human games from the [Lichess open database](https://database.lichess.org/) (lichess.org, CC0); move labels from the [Stockfish](https://stockfishchess.org/) chess engine.
 

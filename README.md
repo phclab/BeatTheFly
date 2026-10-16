@@ -10,7 +10,7 @@ mushroom body (4,510 neurons, 1,027,152 neuron-to-neuron connections), chess als
 antennal lobe, and Pong by the central complex, the fly's navigation and steering centre. Each game and brain
 region has its own trained synaptic weights on its own wiring.
 
-Synaptic weights trained with PHCSSM parallel-scan mode, deployment in sequential RSNN mode ([PHCSSM](https://arxiv.org/abs/2604.01295)).
+Synaptic weights trained with PHCSSM parallel-scan mode, deployment in sequential RSNN mode ([PHCSSM](https://doi.org/10.1016/j.array.2026.101315)).
 
 made by Po-Han Chiang @ NYCU
 
@@ -67,4 +67,4 @@ The model weights loaded by the page are not covered by the code license: [CC-BY
 Connectome-derived data: CC-BY-4.0. Third-party code and full attribution: NOTICE.md.
 
 ## Citation
-PHCSSM: https://arxiv.org/abs/2604.01295
+PHCSSM: https://doi.org/10.1016/j.array.2026.101315
